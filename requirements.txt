@@ -7,3 +7,4 @@ scanpy
 joblib
 inferelator
 tqdm
+matplotlib

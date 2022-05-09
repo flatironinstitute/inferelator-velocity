@@ -4,53 +4,82 @@ from matplotlib import cm
 import pandas as pd
 import numpy as np
 from matplotlib.ticker import FormatStrFormatter
+import warnings
 
 DEFAULT_CMAP = 'plasma'
 
 
-def program_time_summary(adata, program, cluster_order=None, cluster_colors=None, cbar_cmap=None, ax=None,
-                         hist_bins=80, cbar_title=None, wrap_time=None, time_limits=None, ax_key_pref=None,
-                         alpha=0.5):
-    """
-    Plot a summary of the program-specific times
+def program_time_summary(
+    adata,
+    program,
+    cluster_order=None,
+    cluster_colors=None,
+    cbar_cmap=None,
+    ax=None,
+    hist_bins=80,
+    cbar_title=None,
+    cbar_horizontal=False,
+    wrap_time=None,
+    time_limits=None,
+    ax_key_pref=None,
+    alpha=0.5):
 
-    :param adata: Anndata which `times.program_times` has been called on
+    """
+    Generate a summary figure for a specific program from an AnnData object
+
+    :param adata: Anndata object which `ifv.program_times()` has been called on
     :type adata: ad.AnnData
-    :param program: _description_
-    :type program: _type_
-    :param cluster_order: _description_, defaults to None
-    :type cluster_order: _type_, optional
-    :param cluster_colors: _description_, defaults to None
-    :type cluster_colors: _type_, optional
-    :param cbar_cmap: _description_, defaults to None
-    :type cbar_cmap: _type_, optional
-    :param ax: _description_, defaults to None
-    :type ax: _type_, optional
-    :param hist_bins: _description_, defaults to 80
+    :param program: Program name
+    :type program: str
+    :param cluster_order: List of cluster labels in order,
+        defaults to None
+    :type cluster_order: list, optional
+    :param cluster_colors: List of matplotlib colors to use for clusters,
+        defaults to None
+    :type cluster_colors: list, optional
+    :param cbar_cmap: Matplotlib colormap to use for cluster colors,
+        has no effect if cluster_colors is passed,
+        will use 'plasma' if no colors are provided by default,
+        defaults to None
+    :type cbar_cmap: str, matplotlib.cm, optional
+    :param ax: Dict of axes to draw images into.
+        'pca1' draws PC1/PC2 plot
+        'pca2' draws PC1/PC3 plot
+        'hist' draws histogram of cells over time colored by cluster
+        'cbar' draws legend colorbar,
+        '{cluster_1_label} / {cluster_2_label} draws PC1/PC2 plot with cells from
+            the cluster_1 / cluster_2 vector,
+        if axis is not present it will be skipped,
+        defaults to None (new figure will be drawn automatically)
+    :type ax: dict[Axes], optional
+    :param hist_bins: Number of bins to use for histogram, defaults to 80
     :type hist_bins: int, optional
-    :param cbar_title: _description_, defaults to None
-    :type cbar_title: _type_, optional
-    :param wrap_time: _description_, defaults to None
-    :type wrap_time: _type_, optional
-    :param time_limits: _description_, defaults to None
-    :type time_limits: _type_, optional
-    :param ax_key_pref: _description_, defaults to None
-    :type ax_key_pref: _type_, optional
-    :param alpha: _description_, defaults to 0.5
+    :param cbar_title: Title for colorbar/legend, defaults to None
+    :type cbar_title: str, optional
+    :param cbar_horizontal: Draw colorbar/legend horizontally, defaults to False
+    :type cbar_horizontal: bool, optional
+    :param wrap_time: Wrap times at a specific time, defaults to None
+    :type wrap_time: float, optional
+    :param time_limits: X axis limits for histogram, defaults to None
+    :type time_limits: tuple(float, float), optional
+    :param ax_key_pref: Prefix to add to axes dictionary keys, defaults to None
+    :type ax_key_pref: str, optional
+    :param alpha: Alpha value for plots, defaults to 0.5
     :type alpha: float, optional
-    :raises ValueError: _description_
-    :return: _description_
-    :rtype: _type_
+    :raises RuntimeError: Raises RuntimeError if `ifv.program_times()` keys are not
+        present in the adata object
+    :return: Returns figure & axes objects if `ax=None` was passed, otherwise
+        returns axes
+    :rtype: matplotlib.Figure (optional), dict[Axes]
     """
 
-    # Get keys
-
+    # GET ADATA KEYS AND VERIFY PROGRAM_TIMES() ####
     if ax_key_pref is None:
         ax_key_pref = ''
 
     uns_key = f"program_{program}_pca"
     if uns_key not in adata.uns:
-        raise ValueError(
+        raise RuntimeError(
             f"Unable to find program {program} in .uns[{uns_key}]. "
             "Run program_times() before calling plotter."
         )
@@ -59,13 +88,12 @@ def program_time_summary(adata, program, cluster_order=None, cluster_colors=None
     obs_time_key = adata.uns[uns_key]['obs_time_key']
     obsm_key = adata.uns[uns_key]['obsm_key']
 
-    # Set up colormappings if not provided
+    # GET CLUSTER-CLUSTER PATH LABELS ####
+    n, _panels = len(adata.uns[uns_key]['assignment_names']), adata.uns[uns_key]['assignment_names']
 
+    # SET UP COLORMAPS IF NOT PROVIDED ####
     if cluster_order is None:
         cluster_order = np.unique(adata.obs[obs_group_key])
-
-    _panels = adata.uns[uns_key]['assignment_names']
-    n = len(_panels)
 
     if cbar_cmap is None:
         cbar_cmap = DEFAULT_CMAP
@@ -75,37 +103,66 @@ def program_time_summary(adata, program, cluster_order=None, cluster_colors=None
     if cluster_colors is None:
         cluster_colors = {cluster_order[i]: colors.rgb2hex(cbar_cmap(i)) for i in range(n)}
 
+    # VECTOR OF COLORS BASED ON CLUSTER LABELS ####
     _color_vector = _get_colors(adata.obs[obs_group_key].values, cluster_colors)
 
-    # Set up figure
+    # SET UP FIGURE IF NOT PROVIDED ####
     if ax is None:
 
         _layout = [['pca1'], ['pca2'], ['hist'], ['cbar']]
 
+        # IF THERE ARE 4 OR FEWER CLUSTER-CLUSTER PAIRS, DRAW 4x2 ####
         if n < 5:
             _groups = [_panels[i] if i < n else '.' for i in range(4)]
             _layout = [_layout[i] + [_groups[i]] for i in range(4)]
+            _figsize = (8, 4)
 
+        # IF THERE ARE 8 OR FEWER CLUSTER-CLUSTER PAIRS, DRAW 4x3 ####
         elif n < 9:
             _groups = [_panels[i] if i < n else '.' for i in range(8)]
             _layout = [_layout[i] + [_groups[2*i], _groups[2*i + 1]] for i in range(4)]
+            _figsize = (8, 6)
 
+        # IF THERE MORE THAN 8 CLUSTER-CLUSTER PAIRS, DRAW 4x4 ####
         else:
             _groups = [_panels[i] if i < n else '.' for i in range(12)]
             _layout = [_layout[i] + [_groups[3*i], _groups[3*i + 1], _groups[3*i + 2]]
                        for i in range(4)]
+            _figsize = (8, 8)
 
-        fig, ax = plt.subplot_mosaic(_layout,
-                                     gridspec_kw=dict(width_ratios=[1] * len(_layout[0]),
-                                                      height_ratios=[1, 1, 1, 1],
-                                                      wspace=0.25, hspace=0.25),
-                                     figsize=(8, 8), dpi=300)
+        # WITH MORE THAN 12 CLUSTER-CLUSTER PAIRS, WARN ####
+        if n > 12:
+            warnings.warn(
+                "program_time_summary() can only autodraw up to 12 cluster paths, "
+                f"{n} paths are present; generate a figure and provide axes to `ax` "
+                "to plot other paths",
+                RuntimeWarning
+            )
+
+        # BUILD GRIDSPEC AND CALL SUBPLOT MOSAIC ####
+        _gridspec = dict(
+            width_ratios=[1] * len(_layout[0]),
+            height_ratios=[1, 1, 1, 1],
+            wspace=0.25,
+            hspace=0.25
+        )
+
+        fig, ax = plt.subplot_mosaic(
+            _layout,
+            gridspec_kw=_gridspec,
+            figsize=_figsize,
+            dpi=300
+        )
+
     else:
         fig = None
 
     refs = {}
 
     _centroids = [adata.uns[uns_key]['centroids'][x] for x in cluster_order]
+
+    if wrap_time is not None:
+        _centroids = _centroids + [adata.uns[uns_key]['centroids'][cluster_order[0]]]
 
     if ax_key_pref + 'pca1' in ax:
         refs[ax_key_pref + 'pca1'] = _plot_pca(
@@ -153,6 +210,7 @@ def program_time_summary(adata, program, cluster_order=None, cluster_colors=None
 
         if wrap_time is not None:
             _times[_times > wrap_time] = _times[_times > wrap_time] - wrap_time
+            _times[_times < 0] = _times[_times < 0] + wrap_time
 
         refs[ax_key_pref + 'hist'] = _plot_time_histogram(
             _times,
@@ -164,20 +222,23 @@ def program_time_summary(adata, program, cluster_order=None, cluster_colors=None
         )
 
         if time_limits is not None:
-            _xlim_lower = (time_limits[0] - _times.min()) / hist_bins
-            _xlim_higher = time_limits[1] / _times.max() * hist_bins
-            ax[ax_key_pref + 'hist'].set_xlim((_xlim_lower,
-                                               _xlim_higher))
+            ax[ax_key_pref + 'hist'].set_xlim(((time_limits[0] - _times.min()) / hist_bins,
+                                               time_limits[1] / _times.max() * hist_bins))
 
     if ax_key_pref + 'cbar' in ax:
         _add_legend(
             ax[ax_key_pref + 'cbar'],
             [cluster_colors[x] for x in cluster_order],
             cluster_order,
-            title=cbar_title
+            title=cbar_title,
+            horizontal=cbar_horizontal
         )
 
-    return fig, ax
+    if fig is not None:
+        return fig, ax
+
+    else:
+        return ax
 
 
 def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_path=None, s=1, alpha=0.5):
@@ -241,7 +302,7 @@ def _get_time_hist_data(time_data, group_data, bins, group_order=None):
                         minlength=len(cuts) - 1) for x in group_order]
 
 
-def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colors=None, bins=50, xtick_format="%.2f"):
+def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colors=None, bins=50, xtick_format="%.0f"):
 
     if group_order is None:
         group_order = np.unique(group_data)
@@ -284,15 +345,16 @@ def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colo
     return fref
 
 
-def _add_legend(ax, colors, labels, title=None, **kwargs):
+def _add_legend(ax, colors, labels, title=None, horizontal=False, **kwargs):
     ax.axis('off')
     _ = [ax.scatter([], [], c=c, label=l) for c, l in zip(colors, labels)]
     return ax.legend(frameon=False,
                      loc='center left',
-                     ncol=1,
+                     ncol=len(labels) if horizontal else 1,
+                     handletextpad=0.1 if horizontal else 0.8,
                      borderpad=0.1,
                      borderaxespad=0.1,
-                     columnspacing=0,
+                     columnspacing=1 if horizontal else 0,
                      mode=None,
                      title=title,
                      **kwargs)

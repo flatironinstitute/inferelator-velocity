@@ -145,7 +145,7 @@ def _calculate_program_time(count_data, cluster_vector, cluster_order_dict, n_ne
         group['index'][_idx] = len(group['names'])
         group['names'].append(f"{start} / {end}")
         group['centroids'].append((centroids[start], centroids[end]))
-        group['path'].append(_total_path[_tp_centroids[start]:_right_centroid])
+        group['path'].append(_total_path[max(0, _tp_centroids[start] - 1):_right_centroid])
 
     if verbose:
         vprint(f"Assigned times to {np.sum(~np.isnan(times))} cells "
