@@ -1,0 +1,9 @@
+numpy
+scipy
+pandas
+sklearn
+anndata>=0.8
+scanpy
+joblib
+inferelator
+tqdm
