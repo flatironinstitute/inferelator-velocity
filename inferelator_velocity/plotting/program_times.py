@@ -22,6 +22,7 @@ def program_time_summary(
     wrap_time=None,
     time_limits=None,
     ax_key_pref=None,
+    panel_tags=None,
     alpha=0.5):
 
     """
@@ -64,6 +65,10 @@ def program_time_summary(
     :type time_limits: tuple(float, float), optional
     :param ax_key_pref: Prefix to add to axes dictionary keys, defaults to None
     :type ax_key_pref: str, optional
+    :param panel_tags: Dict of panel tags to add to axes, keyed by axis,
+        set to False to disable tags,
+        defaults to None
+    :type panel_tags: dict, bool, optional
     :param alpha: Alpha value for plots, defaults to 0.5
     :type alpha: float, optional
     :raises RuntimeError: Raises RuntimeError if `ifv.program_times()` keys are not
@@ -91,6 +96,13 @@ def program_time_summary(
     # GET CLUSTER-CLUSTER PATH LABELS ####
     n, _panels = len(adata.uns[uns_key]['assignment_names']), adata.uns[uns_key]['assignment_names']
 
+    if panel_tags is None:
+        panel_tags = {
+            ax_key_pref + 'pca1': "A",
+            ax_key_pref + 'hist': "B",
+            ax_key_pref + _panels[0]: "C"
+        }
+
     # SET UP COLORMAPS IF NOT PROVIDED ####
     if cluster_order is None:
         cluster_order = np.unique(adata.obs[obs_group_key])
@@ -115,13 +127,13 @@ def program_time_summary(
         if n < 5:
             _groups = [_panels[i] if i < n else '.' for i in range(4)]
             _layout = [_layout[i] + [_groups[i]] for i in range(4)]
-            _figsize = (8, 4)
+            _figsize = (4, 8)
 
         # IF THERE ARE 8 OR FEWER CLUSTER-CLUSTER PAIRS, DRAW 4x3 ####
         elif n < 9:
             _groups = [_panels[i] if i < n else '.' for i in range(8)]
             _layout = [_layout[i] + [_groups[2*i], _groups[2*i + 1]] for i in range(4)]
-            _figsize = (8, 6)
+            _figsize = (6, 8)
 
         # IF THERE MORE THAN 8 CLUSTER-CLUSTER PAIRS, DRAW 4x4 ####
         else:
@@ -159,11 +171,13 @@ def program_time_summary(
 
     refs = {}
 
+    # IDENTIFY CLUSTER CENTROIDS ####
     _centroids = [adata.uns[uns_key]['centroids'][x] for x in cluster_order]
 
     if wrap_time is not None:
         _centroids = _centroids + [adata.uns[uns_key]['centroids'][cluster_order[0]]]
 
+    # BUILD PC1/PC2 PLOT ####
     if ax_key_pref + 'pca1' in ax:
         refs[ax_key_pref + 'pca1'] = _plot_pca(
             adata.obsm[obsm_key][:, 0:2],
@@ -174,10 +188,10 @@ def program_time_summary(
             alpha=alpha
         )
 
-        ax[ax_key_pref + 'pca1'].set_title(f"Program {program} PCs")
         ax[ax_key_pref + 'pca1'].set_xlabel("PC1")
         ax[ax_key_pref + 'pca1'].set_ylabel("PC2")
 
+    # BUILD PC1/PC3 PLOT ####
     if ax_key_pref + 'pca2' in ax:
         refs[ax_key_pref + 'pca2'] = _plot_pca(
             adata.obsm[obsm_key][:, [0, 2]],
@@ -189,11 +203,12 @@ def program_time_summary(
         ax[ax_key_pref + 'pca2'].set_xlabel("PC1")
         ax[ax_key_pref + 'pca2'].set_ylabel("PC3")
 
+    # BUILD CLUSTER-CLUSTER PC1/PC2 PLOTS ####
     for i, _pname in enumerate(_panels):
 
         if ax_key_pref + _pname in ax:
             _idx = adata.uns[uns_key]['closest_path_assignment'] == i
-            refs[ax_key_pref + 'group'] = _plot_pca(
+            refs[ax_key_pref + 'group' + _pname] = _plot_pca(
                 adata.obsm[obsm_key][:, 0:2],
                 ax[ax_key_pref + _pname],
                 _color_vector,
@@ -202,8 +217,12 @@ def program_time_summary(
                 shortest_path=adata.uns[uns_key]['assignment_path'][i],
                 alpha=alpha
             )
-            ax[_pname].set_title(_pname)
 
+            ax[ax_key_pref + _pname].set_title(_pname)
+            ax[ax_key_pref + _pname].set_xlabel("PC1")
+            ax[ax_key_pref + _pname].set_ylabel("PC2")
+
+    # BUILD TIME HISTOGRAM PLOT ####
     if ax_key_pref + 'hist' in ax:
 
         _times = adata.obs[obs_time_key].values
@@ -225,6 +244,7 @@ def program_time_summary(
             ax[ax_key_pref + 'hist'].set_xlim(((time_limits[0] - _times.min()) / hist_bins,
                                                time_limits[1] / _times.max() * hist_bins))
 
+    # BUILD LEGEND ####
     if ax_key_pref + 'cbar' in ax:
         _add_legend(
             ax[ax_key_pref + 'cbar'],
@@ -234,6 +254,12 @@ def program_time_summary(
             horizontal=cbar_horizontal
         )
 
+    # ADD PANEL ANNOTATION TAGS ####
+    if panel_tags:
+        for _k, _title in panel_tags.items():
+            if _k in ax:
+                ax[_k].set_title(_title, loc='left', weight='bold')
+
     if fig is not None:
         return fig, ax
 
@@ -242,21 +268,55 @@ def program_time_summary(
 
 
 def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_path=None, s=1, alpha=0.5):
+    """
+    Plot principal components as a scatter plot into a provided axis
 
+    :param comps: Components to plot. Rows are observations,
+        plot the first two columns
+    :type comps: np.ndarray
+    :param ax: Matplotlib axis for drawing
+    :type ax: Axes
+    :param colors: Vector of colors for each observation
+    :type colors: _type_
+    :param bool_idx: A boolean index of points to plot, None plots all,
+        defaults to None
+    :type bool_idx: np.ndarray, optional
+    :param centroid_indices: Location of centroid points to highlight,
+        defaults to None
+    :type centroid_indices: np.ndarray, list, optional
+    :param shortest_path: Ordered list of points to connect with black line,
+        defaults to None
+    :type shortest_path: np.ndarray, list, optional
+    :param s: Point size, defaults to 1
+    :type s: int, optional
+    :param alpha: Point alpha, defaults to 0.5
+    :type alpha: float, optional
+    :raises ValueError: Raises a ValueError if colors and comps are different sizes
+    :return: Returns the PathCollection created by matplotlib scatter
+    :rtype: matplotlib.collections.PathCollection
+    """
+
+    if len(colors) != comps.shape[0]:
+        raise ValueError(f"PCA comps size {comps.shape} != color vector [{len(colors)}]")
+
+    # GET LIMIT FROM ENTIRE DATASET WITHOUT MASKING ####
     _xlim = comps[:, 0].min(), comps[:, 0].max()
     _ylim = comps[:, 1].min(), comps[:, 1].max()
 
     if bool_idx is None:
         bool_idx = np.ones(comps.shape[0], dtype=bool)
 
+    # MAKE SURE TO SHUFFLE TO MITIGATE OVERPLOTTING ####
     rgen = np.random.default_rng(123)
     overplot_shuffle = np.arange(np.sum(bool_idx))
     rgen.shuffle(overplot_shuffle)
 
+    # SCATTER PLOT ####
     scatter_ref = ax.scatter(comps[bool_idx, 0][overplot_shuffle], comps[bool_idx, 1][overplot_shuffle],
                              c=colors[bool_idx][overplot_shuffle],
                              s=s, alpha=alpha)
 
+    # HIGHLIGHT CENTROIDS ####
     if centroid_indices is not None:
         ax.scatter(comps[centroid_indices, 0], comps[centroid_indices, 1],
                    c='None', edgecolor='black', s=150 * s, alpha=1)
@@ -268,6 +328,7 @@ def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_
                     alpha = 0.5,
                     lw = 1)
 
+    # ADD PATH WALK ####
     if shortest_path is not None:
         ax.plot(comps[shortest_path, 0], comps[shortest_path, 1],
                 '-ok', markersize=3, linewidth=1)
@@ -283,6 +344,17 @@ def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_
 
 
 def _get_colors(values, color_dict):
+    """
+    Convert a vector of labels to a vector of colors 
+    using a dict of labels -> colors
+
+    :param values: Vector of labels
+    :type values: np.ndarray
+    :param color_dict: Dict of labels -> colors
+    :type color_dict: dict
+    :return: Vector of colors
+    :rtype: np.ndarray
+    """
 
     c = np.empty_like(values, dtype=object)
     for k, col in color_dict.items():
