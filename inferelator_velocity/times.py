@@ -345,7 +345,7 @@ def _order_dict_to_lists(order_dict):
             _start = k
 
     if _start is None:
-        _start = order_dict.keys()[0]
+        _start = list(order_dict.keys())[0]
 
     _order = [_start]
     _time = [order_dict[_start][1], order_dict[_start][2]]
