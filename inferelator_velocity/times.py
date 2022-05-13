@@ -29,7 +29,7 @@ def program_times(data,
     :param cluster_order_dict: Dict, keyed by program ID, of cluster centroid time and
         order. For example:
         {'PROGRAM_ID':
-            {'CLUSTER_ID': 
+            {'CLUSTER_ID':
                 ('NEXT_CLUSTER_ID', time_at_first_centroid, time_at_next_centroid)
             }
         }
@@ -86,7 +86,13 @@ def program_times(data,
             data.uns[_obsmk]['obs_time_key'] = _obsk
             data.uns[_obsmk]['obs_group_key'] = cluster_obs_key_dict[prog]
             data.uns[_obsmk]['obsm_key'] = _obsmk
-            data.uns[_obsmk]['cluster_order_dict'] = cluster_order_dict[prog]
+
+            _cluster_order, _cluster_times = _order_dict_to_lists(
+                cluster_order_dict[prog]
+            )
+
+            data.uns[_obsmk]['cluster_order'] = _cluster_order
+            data.uns[_obsmk]['cluster_times'] = _cluster_times
 
     return data
 
@@ -254,6 +260,21 @@ def calculate_times(count_data,
 
 
 def scalar_projection(data, center_point, off_point, normalize=True):
+    """
+    Scalar projection of data onto a line defined by two points
+
+    :param data: Data
+    :type data: np.ndarray
+    :param center_point: Integer index of starting point for line
+    :type center_point: int
+    :param off_point: Integer index of ending point for line
+    :type off_point: int
+    :param normalize: Normalize distance between start and end of line to 1,
+        defaults to True
+    :type normalize: bool, optional
+    :return: Scalar projection array
+    :rtype: np.ndarray
+    """
 
     vec = data[off_point, :] - data[center_point, :]
 
@@ -267,8 +288,7 @@ def scalar_projection(data, center_point, off_point, normalize=True):
     if normalize:
         _center_scale = scalar_proj[center_point]
         _off_scale = scalar_proj[off_point]
-        scalar_proj = (scalar_proj - _center_scale) / \
-            (_off_scale - _center_scale)
+        scalar_proj = (scalar_proj - _center_scale) / (_off_scale - _center_scale)
 
     return scalar_proj
 
@@ -280,3 +300,61 @@ def get_centroids(comps, cluster_vector):
 
 def _get_centroid(comps):
     return np.sum((comps - np.mean(comps, axis=0)[None, :]) ** 2, axis=1).argmin()
+
+
+def _order_dict_to_lists(order_dict):
+    """
+    Convert dict to two ordered lists
+    """
+
+    # Create a doubly-linked list
+    _dll = {}
+
+    for start, (end, _, _) in order_dict.items():
+
+        if start in _dll:
+
+            if _dll[start][1] is not None:
+                raise ValueError(f"Both {_dll[start][1]} and {end} follow {start}")
+
+            _dll[start] = (_dll[start][0], end)
+
+        else:
+
+            _dll[start] = (None, end)
+
+        if end in _dll:
+
+            if _dll[end][0] is not None:
+                raise ValueError(f"Both {_dll[end][0]} and {start} precede {end}")
+
+            _dll[end] = (start, _dll[end][1])
+
+        else:
+
+            _dll[end] = (start, None)
+
+    _start = None
+
+    for k in order_dict.keys():
+
+        if _dll[k][0] is None and _start is not None:
+            raise ValueError("Both {k} and {_start} lack predecessors")
+
+        elif _dll[k][0] is None:
+            _start = k
+
+    if _start is None:
+        _start = order_dict.keys()[0]
+
+    _order = [_start]
+    _time = [order_dict[_start][1], order_dict[_start][2]]
+    _next = _dll[_start][1]
+
+    while _next is not None and _next != _start:
+        _order.append(_next)
+        _next = _dll[_next][1]
+        if _next in order_dict and _next != _start:
+            _time.append(order_dict[_next][1])
+
+    return _order, _time
