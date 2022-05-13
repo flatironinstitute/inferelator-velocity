@@ -28,7 +28,11 @@ def program_times(data,
     :type cluster_obs_key_dict: dict
     :param cluster_order_dict: Dict, keyed by program ID, of cluster centroid time and
         order. For example:
-        {'CLUSTER_ID': ('NEXT_CLUSTER_ID', time_at_first_centroid, time_at_next_centroid)}
+        {'PROGRAM_ID':
+            {'CLUSTER_ID': 
+                ('NEXT_CLUSTER_ID', time_at_first_centroid, time_at_next_centroid)
+            }
+        }
     :type cluster_order_dict: dict[tuple]
     :param layer: Layer containing count data, defaults to "X"
     :type layer: str, optional
@@ -70,7 +74,7 @@ def program_times(data,
         else:
             lref = data.X if layer == "X" else data.layers[layer]
 
-            data.obs[_obsk], data.obsm[_obsmk], data.uns[_obsmk] = _calculate_program_time(
+            data.obs[_obsk], data.obsm[_obsmk], data.uns[_obsmk] = calculate_times(
                 lref[:, _var_idx],
                 _cluster_labels,
                 cluster_order_dict[prog],
@@ -87,8 +91,50 @@ def program_times(data,
     return data
 
 
-def _calculate_program_time(count_data, cluster_vector, cluster_order_dict, n_neighbors=10,
-                            n_comps=None, graph_method="D", return_components=False, verbose=False):
+def calculate_times(count_data,
+                    cluster_vector,
+                    cluster_order_dict,
+                    n_neighbors=10,
+                    n_comps=None,
+                    graph_method="D",
+                    return_components=False,
+                    verbose=False
+                    ):
+    """
+    Calculate times for each cell based on count data and a known set of anchoring
+    time points.
+
+    :param count_data: Integer count data
+    :type count_data: np.ndarray
+    :param cluster_vector: Vector of cluster labels
+    :type cluster_vector: np.ndarray
+    :param cluster_order_dict: Dict of cluster centroid time and
+        order. For example:
+        {'CLUSTER_ID':
+            ('NEXT_CLUSTER_ID', time_at_first_centroid, time_at_next_centroid)
+        }
+    :type cluster_order_dict: dict
+    :param n_neighbors: Number of neighbors for shortest-path to centroid assignment,
+        defaults to 10
+    :type n_neighbors: int, optional
+    :param n_comps: Number of components to use for centroid assignment,
+        defaults to None (selecting with molecular crossvalidation)
+    :type n_comps: int, optional
+    :param graph_method: Shortest-path graph method for
+        scipy.sparse.csgraph.shortest_path,
+        defaults to "D" (Dijkstra's algorithm)
+    :type graph_method: str, optional
+    :param return_components: Return PCs and metadata if True, otherwise return only
+        a vector of times, defaults to False
+    :type return_components: bool, optional
+    :param verbose: Print detailed status, defaults to False
+    :type verbose: bool, optional
+    :raises ValueError: Raise ValueError if the cluster order keys and the values in the
+        cluster_vector are not compatible.
+    :return: An array of time values per cell. Also an array of PCs and a dict of metadata,
+        if return_components is True.
+    :rtype: np.ndarray, np.ndarray (optional), dict (optional)
+    """
 
     n = count_data.shape[0]
 
@@ -192,6 +238,13 @@ def _calculate_program_time(count_data, cluster_vector, cluster_order_dict, n_ne
     adata.uns['pca']['closest_path_assignment'] = group['index']
     adata.uns['pca']['assignment_names'] = group['names']
     adata.uns['pca']['assignment_centroids'] = group['centroids']
+
+    # PAD PATH WITH -1s AND CONVERT TO AN ARRAY FOR ANNDATA.WRITE() ####
+    _path_max_len = max(map(len, group['path']))
+    group['path'] = np.array([[x[c] if c < len(x) else -1
+                               for c in range(_path_max_len)]
+                              for x in group['path']])
+
     adata.uns['pca']['assignment_path'] = group['path']
 
     if return_components:
