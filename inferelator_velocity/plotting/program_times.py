@@ -23,7 +23,8 @@ def program_time_summary(
     time_limits=None,
     ax_key_pref=None,
     panel_tags=None,
-    alpha=0.5):
+    alpha=0.5
+):
 
     """
     Generate a summary figure for a specific program from an AnnData object
@@ -208,13 +209,18 @@ def program_time_summary(
 
         if ax_key_pref + _pname in ax:
             _idx = adata.uns[uns_key]['closest_path_assignment'] == i
+
+            # REMOVE PADDING ON PATH ####
+            _path = adata.uns[uns_key]['assignment_path'][i]
+            _path = _path[_path != -1]
+
             refs[ax_key_pref + 'group' + _pname] = _plot_pca(
                 adata.obsm[obsm_key][:, 0:2],
                 ax[ax_key_pref + _pname],
                 _color_vector,
                 bool_idx=_idx,
                 centroid_indices=adata.uns[uns_key]['assignment_centroids'][i],
-                shortest_path=adata.uns[uns_key]['assignment_path'][i],
+                shortest_path=_path,
                 alpha=alpha
             )
 
@@ -345,7 +351,7 @@ def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_
 
 def _get_colors(values, color_dict):
     """
-    Convert a vector of labels to a vector of colors 
+    Convert a vector of labels to a vector of colors
     using a dict of labels -> colors
 
     :param values: Vector of labels
