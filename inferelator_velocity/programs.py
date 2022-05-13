@@ -204,11 +204,12 @@ def program_select(data, n_programs=2, n_comps=None, layer="X",
         'cluster_program_map': clust_map,
         'program_PCs_variance_ratio': var_expl,
         'n_comps': n_comps,
+        'n_programs': n_programs,
         'molecular_cv_loss': mcv_loss_arr
     }
 
     if metric == 'information':
-        data.uns['programs']['mutual_information'] = mutual_info,
+        data.uns['programs']['mutual_information'] = mutual_info
 
     return data
 

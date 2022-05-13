@@ -9,8 +9,42 @@ from .utils import vprint
 from scipy.sparse.csgraph import shortest_path
 
 
-def program_times(data, cluster_obs_key_dict, cluster_order_dict, layer="X", program_var_key='program',
-                  programs=['0', '1'], verbose=False):
+def program_times(data,
+    cluster_obs_key_dict,
+    cluster_order_dict,
+    layer="X",
+    program_var_key='program',
+    programs=('0', '1'),
+    n_comps=None,
+    verbose=False
+):
+    """
+    Calcuate times for each cell based on known cluster time values
+
+    :param data: AnnData object which `ifv.program_select()` has been called on
+    :type data: ad.AnnData
+    :param cluster_obs_key_dict: Dict, keyed by program ID, of cluster identifiers from
+        metadata (e.g. {'0': 'Time'}, etc)
+    :type cluster_obs_key_dict: dict
+    :param cluster_order_dict: Dict, keyed by program ID, of cluster centroid time and
+        order. For example:
+        {'CLUSTER_ID': ('NEXT_CLUSTER_ID', time_at_first_centroid, time_at_next_centroid)}
+    :type cluster_order_dict: dict[tuple]
+    :param layer: Layer containing count data, defaults to "X"
+    :type layer: str, optional
+    :param program_var_key: Key to find program IDs in var data, defaults to 'program'
+    :type program_var_key: str, optional
+    :param programs: Program IDs to calculate times for, defaults to ('0', '1')
+    :type programs: tuple, optional
+    :param n_comps: Dict, keyed by program ID, of number of components to use per program,
+        defaults to selecting with molecular crossvalidation
+    :type n_comps: dict[int]
+    :param verbose: Print detailed status, defaults to False
+    :type verbose: bool, optional
+    :return: AnnData object with `program_{id}_pca` obsm and uns keys and
+        `program_{id}_time` obs keys.
+    :rtype: ad.AnnData
+    """
 
     if type(programs) == list or type(programs) == tuple or isinstance(programs, np.ndarray):
         pass
@@ -41,7 +75,8 @@ def program_times(data, cluster_obs_key_dict, cluster_order_dict, layer="X", pro
                 _cluster_labels,
                 cluster_order_dict[prog],
                 return_components=True,
-                verbose=verbose
+                verbose=verbose,
+                n_comps=n_comps if n_comps is None else n_comps[prog]
             )
 
             data.uns[_obsmk]['obs_time_key'] = _obsk
