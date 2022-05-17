@@ -1,12 +1,17 @@
 import anndata as ad
 import scanpy as sc
 import numpy as np
+from yaml import warnings
 
 from .utils.graph import get_shortest_paths, get_total_path
 from .utils.mcv import mcv_pcs
 from .utils import vprint
 
 from scipy.sparse.csgraph import shortest_path
+
+
+OBS_KEY = "program_{prog}_time"
+OBSM_KEY ="program_{prog}_pca"
 
 
 def program_times(data,
@@ -57,8 +62,8 @@ def program_times(data,
 
     for prog in programs:
 
-        _obsk = f"program_{prog}_time"
-        _obsmk = f"program_{prog}_pca"
+        _obsk = OBS_KEY.format(prog=prog)
+        _obsmk = OBSM_KEY.format(prog=prog)
 
         _var_idx = data.var[program_var_key] == prog
 
@@ -257,6 +262,41 @@ def calculate_times(count_data,
         return times, adata.obsm['X_pca'], adata.uns['pca']
     else:
         return times
+
+
+def wrap_times(data, program, wrap_time):
+    """
+    Wrap a time value at a specific time
+    Useful if time is a circle
+
+    :param data: AnnData object which has been processed by
+        program_times
+    :type data: ad.AnnData
+    :param program: Program Name
+    :type program: str
+    :param wrap_time: Time to wrap at
+    :type wrap_time: numeric
+    :return: AnnData with modified times for program
+    :rtype: ad.AnnData
+    """
+
+    _obsk = OBS_KEY.format(prog=program)
+
+    _times = data.obs[_obsk].values
+
+    if _times.max() > 2 * wrap_time or _times.min() < -1 * wrap_time:
+        warnings.warn(
+            f"Wrapping times in .obs[{_obsk}] at {wrap_time} "
+            f"May have undesired behavior because times range from "
+            f"{_times.min():.3f} to {_times.max():3f}"
+        )
+
+    _times[_times > wrap_time] = _times[_times > wrap_time] - wrap_time
+    _times[_times < 0] = _times[_times < 0] + wrap_time
+
+    data.obs[_obsk] = _times
+
+    return data
 
 
 def scalar_projection(data, center_point, off_point, normalize=True):

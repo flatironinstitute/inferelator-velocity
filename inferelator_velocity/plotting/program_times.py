@@ -106,7 +106,7 @@ def program_time_summary(
 
     # SET UP COLORMAPS IF NOT PROVIDED ####
     if cluster_order is None:
-        cluster_order = np.unique(adata.obs[obs_group_key])
+        cluster_order = adata.uns[uns_key]['cluster_order']
 
     if cbar_cmap is None:
         cbar_cmap = DEFAULT_CMAP
