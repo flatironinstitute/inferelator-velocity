@@ -382,7 +382,15 @@ def _get_time_hist_data(time_data, group_data, bins, group_order=None):
                         minlength=len(cuts) - 1) for x in group_order]
 
 
-def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colors=None, bins=50, xtick_format="%.0f"):
+def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colors=None, bins=None, xtick_format="%.0f"):
+
+    # Set a default number of bins
+    # Integer range or 50, whichever is larger
+    if bins is None:
+        bins = max(
+            int(np.max(time_data) - np.min(time_data)),
+            50
+        )
 
     if group_order is None:
         group_order = np.unique(group_data)
@@ -410,7 +418,6 @@ def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colo
         hist_limit.append(np.max(np.abs(bottom_line)))
 
     hist_limit = max(hist_limit)
-    x_mod = (time_data.max() - time_data.min()) / bins
     n_xtick = int(bins/10) + 1
 
     ax.set_ylim(0, hist_limit)
@@ -418,8 +425,11 @@ def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colo
     ax.set_xticks([x * 10 for x in range(n_xtick)])
     ax.set_xticklabels(
         FormatStrFormatter(xtick_format).format_ticks(
-            [x * x_mod * 10 for x in range(n_xtick)]
-        ), rotation = 90
+            np.linspace(time_data.min(),
+                        time_data.max(),
+                        n_xtick)
+        ),
+        rotation=90
     )
 
     return fref
