@@ -1,7 +1,7 @@
 import anndata as ad
 import scanpy as sc
 import numpy as np
-from yaml import warnings
+import warnings
 
 from .utils.graph import get_shortest_paths, get_total_path
 from .utils.mcv import mcv_pcs
