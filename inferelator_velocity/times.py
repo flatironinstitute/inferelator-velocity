@@ -229,7 +229,7 @@ def calculate_times(count_data,
                verbose=verbose)
 
         times[_idx] = scalar_projection(
-            adata.obsm['X_pca'][:, 0:2],
+            adata.obsm['X_pca'],
             centroids[start],
             centroids[end]
         )[_idx] * (right_time - left_time) + left_time
