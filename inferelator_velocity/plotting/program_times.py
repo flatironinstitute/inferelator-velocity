@@ -95,7 +95,8 @@ def program_time_summary(
     obsm_key = adata.uns[uns_key]['obsm_key']
 
     # GET CLUSTER-CLUSTER PATH LABELS ####
-    n, _panels = len(adata.uns[uns_key]['assignment_names']), adata.uns[uns_key]['assignment_names']
+    _panels = adata.uns[uns_key]['assignment_names']
+    n = len(_panels)
 
     if panel_tags is None:
         panel_tags = {
@@ -111,10 +112,11 @@ def program_time_summary(
     if cbar_cmap is None:
         cbar_cmap = DEFAULT_CMAP
 
-    cbar_cmap = cm.get_cmap(cbar_cmap, n)
+    cbar_cmap = cm.get_cmap(cbar_cmap, len(cluster_order))
 
     if cluster_colors is None:
-        cluster_colors = {cluster_order[i]: colors.rgb2hex(cbar_cmap(i)) for i in range(n)}
+        cluster_colors = {cluster_order[i]: colors.rgb2hex(cbar_cmap(i))
+                          for i in range(n)}
 
     # VECTOR OF COLORS BASED ON CLUSTER LABELS ####
     _color_vector = _get_colors(adata.obs[obs_group_key].values, cluster_colors)
