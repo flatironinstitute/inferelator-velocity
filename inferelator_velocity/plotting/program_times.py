@@ -116,7 +116,7 @@ def program_time_summary(
 
     if cluster_colors is None:
         cluster_colors = {cluster_order[i]: colors.rgb2hex(cbar_cmap(i))
-                          for i in range(n)}
+                          for i in range(len(cluster_order))}
 
     # VECTOR OF COLORS BASED ON CLUSTER LABELS ####
     _color_vector = _get_colors(adata.obs[obs_group_key].values, cluster_colors)
