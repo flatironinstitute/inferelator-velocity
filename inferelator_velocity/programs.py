@@ -1,6 +1,5 @@
 import numpy as np
 import anndata as ad
-import itertools
 import warnings
 
 import scanpy as sc
@@ -8,14 +7,13 @@ from scanpy.neighbors import compute_neighbors_umap, _compute_connectivities_uma
 
 from sklearn.cluster import AgglomerativeClustering
 from scipy.stats import spearmanr
-from sklearn.utils import gen_even_slices
 from sklearn.metrics import pairwise_distances
 
-from inferelator.regression.mi import _make_array_discrete, _make_table, _calc_mi
+from inferelator.regression.mi import _make_array_discrete
 from .utils.mcv import mcv_pcs
 from .utils import vprint
+from .metrics import information_distance
 
-from joblib import Parallel, delayed, effective_n_jobs
 import pandas.api.types as pat
 
 mi_bins = 10
@@ -23,7 +21,7 @@ mi_bins = 10
 
 def program_select(data, n_programs=2, n_comps=None, layer="X",
                    mcv_loss_arr=None, n_jobs=-1, verbose=False,
-                   metric='information'):
+                   filter_to_hvg=True, metric='information'):
     """
     Find a specific number of gene programs based on information distance between genes.
     Use raw counts as input.
@@ -49,6 +47,10 @@ def program_select(data, n_programs=2, n_comps=None, layer="X",
     :type n_jobs: int, optional
     :param verbose: Print status, defaults to False
     :type verbose: bool, optional
+    :param filter_to_hvg: Filter to only high-dispersion genes,
+        as defined by seurat, defaults to True.
+        If False, filter genes that do not appear in 10+ cells
+    :type filter_to_hvg: bool, optional
     :param metric: Which metric to use for distance.
         Accepts 'information', and any metric which is accepted
         by sklearn.metrics.pairwise_distances.
@@ -93,12 +95,19 @@ def program_select(data, n_programs=2, n_comps=None, layer="X",
 
     sc.pp.normalize_per_cell(d)
     sc.pp.log1p(d)
-    sc.pp.highly_variable_genes(d, max_mean=np.inf, min_disp=0.01)
 
-    d._inplace_subset_var(d.var['highly_variable'].values)
+    if filter_to_hvg:
+        sc.pp.highly_variable_genes(d, max_mean=np.inf, min_disp=0.01)
+        d._inplace_subset_var(d.var['highly_variable'].values)
 
-    vprint(f"Normalized and kept {d.shape[1]} highly variable genes",
-            verbose=verbose)
+        vprint(f"Normalized and kept {d.shape[1]} highly variable genes",
+               verbose=verbose)
+    else:
+        sc.pp.filter_genes(d, min_cells=10)
+
+        vprint(f"Normalized and kept {d.shape[1]} expressed genes",
+               verbose=verbose)
+
 
     #### PCA / COMPONENT SELECTION BY MOLECULAR CROSSVALIDATION ####
     if n_comps is None:
@@ -121,7 +130,6 @@ def program_select(data, n_programs=2, n_comps=None, layer="X",
 
     # Rotate back to expression space
     pca_expr = d.obsm['X_pca'] @ d.varm['PCs'].T
-    pca_expr = _make_array_discrete(pca_expr, mi_bins, axis=0)
 
     #### CALCULATING MUTUAL INFORMATION & GENE CLUSTERING ####
 
@@ -137,7 +145,7 @@ def program_select(data, n_programs=2, n_comps=None, layer="X",
 
     else:
         dists, mutual_info = information_distance(
-            pca_expr,
+            _make_array_discrete(pca_expr, mi_bins, axis=0),
             mi_bins,
             n_jobs=n_jobs,
             logtype=np.log2,
@@ -189,20 +197,14 @@ def program_select(data, n_programs=2, n_comps=None, layer="X",
     data.var.loc[d.var_names, 'leiden'] = d.var['leiden'].astype(str)
     data.var['program'] = data.var['leiden'].map(clust_map)
 
-    # Calculate PC1 for each program
-    data.obsm['program_PCs'], var_expl = program_pcs(
-        d.layers['counts'], d.var['program'],
-        program_id_levels=list(map(str, range(n_programs)))
-    )
-
     #### ADD RESULTS OBJECT TO UNS ####
+
     data.uns['programs'] = {
         'metric': metric,
         'leiden_correlation': _rho_pc1,
         'metric_genes': d.var_names.values,
         f'{metric}_distance': dists,
         'cluster_program_map': clust_map,
-        'program_PCs_variance_ratio': var_expl,
         'n_comps': n_comps,
         'n_programs': n_programs,
         'molecular_cv_loss': mcv_loss_arr
@@ -262,64 +264,6 @@ def program_pcs(data, program_id_vector, program_id_levels=None,
 
     else:
         return p_pcs, vr_pcs, use_ids
-
-
-def information_distance(discrete_array, bins, n_jobs=-1, logtype=np.log,
-                         return_information=False):
-    """
-    Calculate shannon information distance
-    D(X, X) = 1 - MI(X, X) / H(X, X)
-    Where MI(X, X) is mutual information between features of X
-    H(X, X) is joint entropy between features of X
-
-    :param discrete_array: Discrete integer array [Obs x Features]
-        with values from 0 to `bins`
-    :type discrete_array: np.ndarray [int]
-    :param bins: Number of discrete bins in integer array
-    :type bins: int
-    :param n_jobs: Number of parallel jobs for joblib,
-        -1 uses all cores
-        None does not parallelize
-    :type n_jobs: int, None
-    :param logtype: Log function to use for information calculations,
-        defaults to np.log
-    :type logtype: func, optional
-    :param return_information: Return mutual information in addition to distance,
-        defaults to False
-    :type return_information: bool, optional
-    :return: Information distance D(X, X) array [Features x Features],
-        and MI(X, X) array [Features x Features] if return_information is True
-    :rtype: np.ndarray [float], np.ndarray [float] (optional)
-    """
-
-    # Calculate MI(X, X)
-    mi_xx = _mutual_information(discrete_array, bins, logtype=logtype,
-                                n_jobs=n_jobs)
-
-    # Calculate H(X)
-    h_x = _shannon_entropy(discrete_array, bins, logtype=logtype,
-                           n_jobs=n_jobs)
-
-    # Calulate distance as 1 - MI(X, X) / H(X, X)
-    # Where H(X, X) = H(X) + H(X) - MI(X, X)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        h_xx = h_x[None, :] + h_x[:, None] - mi_xx
-        d_xx = 1 - mi_xx / h_xx
-
-    # Explicitly set distance where h_xx == 0
-    # This is a rare edge case where there is no entropy in either gene
-    # As MI(x, y) == H(x, y), we set the distance to 0 by convention
-    d_xx[h_xx == 0] = 0.
-
-    # Trim floats to 0 based on machine precision
-    # Might need a looser tol; there's a lot of float ops here
-    d_xx[np.abs(d_xx) <= (bins * np.spacing(bins))] = 0.
-
-    # Return distance or distance & MI
-    if return_information:
-        return d_xx, mi_xx
-    else:
-        return d_xx
 
 
 def _get_pcs(data, n_pcs=1, normalize=True, return_var_explained=True):
@@ -384,108 +328,3 @@ def _leiden_cluster(dist_array, n_neighbors, random_state=100, leiden_kws=None):
     sc.tl.leiden(ad_arr, **leiden_kws)
 
     return ad_arr.obs['leiden'].astype(int).values
-
-
-def _mutual_information(discrete_array, bins, n_jobs=-1, logtype=np.log):
-    """
-    Calculate mutual information between features of a discrete array
-
-    :param discrete_array: Discrete integer array [Obs x Features]
-        with values from 0 to `bins`
-    :type discrete_array: np.ndarray [int]
-    :param bins: Number of discrete bins in integer array
-    :type bins: int
-    :param n_jobs: Number of parallel jobs for joblib,
-        -1 uses all cores
-        None does not parallelize
-    :type n_jobs: int, None
-    :param logtype: Log function to use for information calculations,
-        defaults to np.log
-    :type logtype: func, optional
-    :return: Mutual information array [Features, Features]
-    :rtype: np.ndarray [float]
-    """
-
-    m, n = discrete_array.shape
-
-    slices = list(gen_even_slices(n, effective_n_jobs(n_jobs)))
-
-    views = Parallel(n_jobs=n_jobs)(
-        delayed(_mi_slice)(
-            discrete_array,
-            i,
-            bins,
-            logtype=logtype
-        )
-        for i in slices
-    )
-
-    mutual_info = np.empty((n, n), dtype=float)
-
-    for i, r in zip(slices, views):
-        mutual_info[:, i] = r
-
-    return mutual_info
-
-
-def _shannon_entropy(discrete_array, bins, n_jobs=-1, logtype=np.log):
-    """
-    Calculate shannon entropy for each feature in a discrete array
-
-    :param discrete_array: Discrete integer array [Obs x Features]
-        with values from 0 to `bins`
-    :type discrete_array: np.ndarray [int]
-    :param bins: Number of discrete bins in integer array
-    :type bins: int
-    :param n_jobs: Number of parallel jobs for joblib,
-        -1 uses all cores
-        None does not parallelize
-    :type n_jobs: int, None
-    :param logtype: Log function to use for information calculations,
-        defaults to np.log
-    :type logtype: func, optional
-    :return: Shannon entropy array [Features, ]
-    :rtype: np.ndarray [float]
-    """
-
-    m, n = discrete_array.shape
-
-    slices = list(gen_even_slices(n, effective_n_jobs(n_jobs)))
-
-    views = Parallel(n_jobs=n_jobs)(
-        delayed(_entropy_slice)(
-            discrete_array[:, i],
-            bins,
-            logtype=logtype
-        )
-        for i in slices
-    )
-
-    entropy = np.empty(n, dtype=float)
-
-    for i, r in zip(slices, views):
-        entropy[i] = r
-
-    return entropy
-
-
-def _entropy_slice(x, bins, logtype=np.log):
-
-    def _entropy(vec):
-        px = np.bincount(vec, minlength=bins) / vec.size
-        return -1 * np.nansum(px * logtype(px))
-
-    return np.apply_along_axis(_entropy, 0, x)
-
-
-def _mi_slice(x, y_slicer, bins, logtype=np.log):
-
-    y = x[:, y_slicer]
-    n1, n2 = x.shape[1], y.shape[1]
-
-    mutual_info = np.empty((n1, n2), dtype=float)
-    for i, j in itertools.product(range(n1), range(n2)):
-        mutual_info[i, j] = _calc_mi(_make_table(x[:, i], y[:, j], bins),
-                                     logtype=logtype)
-
-    return mutual_info

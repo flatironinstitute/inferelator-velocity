@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 import numpy.testing as npt
 
-from inferelator_velocity.programs import (information_distance, _mutual_information,
-                                           _shannon_entropy, _make_array_discrete)
+from inferelator_velocity.programs import information_distance, _make_array_discrete
+from inferelator_velocity.metrics.information import mutual_information, _shannon_entropy
 
 N = 1000
 BINS = 10
@@ -47,7 +47,7 @@ class TestVelocity(unittest.TestCase):
         expr = _make_array_discrete(EXPRESSION, BINS)
 
         entropy = _shannon_entropy(expr, 10, logtype=np.log2)
-        mi = _mutual_information(expr, 10, logtype=np.log2)
+        mi = mutual_information(expr, 10, logtype=np.log2)
 
         self.assertTrue(np.all(mi >= 0))
         npt.assert_array_equal(mi[:, 3], np.zeros_like(mi[:, 3]))
@@ -59,7 +59,7 @@ class TestVelocity(unittest.TestCase):
         expr = _make_array_discrete(EXPRESSION, BINS)
 
         entropy = _shannon_entropy(expr, 10, logtype=np.log2)
-        mi = _mutual_information(expr, 10, logtype=np.log2)
+        mi = mutual_information(expr, 10, logtype=np.log2)
 
         with np.errstate(divide='ignore', invalid='ignore'):
             calc_dist = 1 - mi / (entropy[:, None] + entropy[None, :] - mi)
