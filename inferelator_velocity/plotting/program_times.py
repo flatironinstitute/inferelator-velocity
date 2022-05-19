@@ -195,6 +195,14 @@ def program_time_summary(
             alpha=alpha
         )
 
+        _n_comps = len(adata.uns[uns_key]['variance'])
+        _total_var = np.sum(adata.uns[uns_key]['variance_ratio']) * 100
+        ax[ax_key_pref + 'pca1'].annotate(f"{_n_comps} PCS ({_total_var:.1f})",
+                                          xy=(0, 0),
+                                          xycoords='data',
+                                          xytext=(0.25, 0.05),
+                                          textcoords='axes fraction')
+
         ax[ax_key_pref + 'pca1'].set_xlabel(f"PC1 ({_var_exp[0]:.1f}%)")
         ax[ax_key_pref + 'pca1'].set_ylabel(f"PC2 ({_var_exp[1]:.1f}%)")
 
