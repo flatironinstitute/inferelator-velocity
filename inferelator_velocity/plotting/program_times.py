@@ -202,6 +202,8 @@ def program_time_summary(
             adata.obsm[obsm_key][:, [0, 2]],
             ax[ax_key_pref + 'pca2'],
             _color_vector,
+            centroid_indices=_centroids,
+            shortest_path=adata.uns[uns_key]['shortest_path'],
             alpha=alpha
         )
 
