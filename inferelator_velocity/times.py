@@ -4,8 +4,9 @@ import numpy as np
 import warnings
 
 from .utils.graph import get_shortest_paths, get_total_path
+from .utils.math import scalar_projection, get_centroids
 from .utils.mcv import mcv_pcs
-from .utils import vprint
+from .utils import vprint, order_dict_to_lists
 
 from scipy.sparse.csgraph import shortest_path
 
@@ -92,7 +93,7 @@ def program_times(data,
             data.uns[_obsmk]['obs_group_key'] = cluster_obs_key_dict[prog]
             data.uns[_obsmk]['obsm_key'] = _obsmk
 
-            _cluster_order, _cluster_times = _order_dict_to_lists(
+            _cluster_order, _cluster_times = order_dict_to_lists(
                 cluster_order_dict[prog]
             )
 
@@ -214,8 +215,12 @@ def calculate_times(count_data,
         'path': []
     }
 
+    # Weight components by explained variance
+    # Highest component is 1; rest are sqrt ratio explained variance
     _var_weights = adata.uns['pca']['variance'].copy()
-    _var_weights /= np.sum(adata.uns['pca']['variance'])
+    _var_weights /= np.max(_var_weights)
+    _var_weights = np.sqrt(_var_weights)
+    adata.uns['pca']['component_weights'] = _var_weights
 
     for start, (end, left_time, right_time) in cluster_order_dict.items():
 
@@ -301,106 +306,3 @@ def wrap_times(data, program, wrap_time):
     data.obs[_obsk] = _times
 
     return data
-
-
-def scalar_projection(data, center_point, off_point, normalize=True, weights=None):
-    """
-    Scalar projection of data onto a line defined by two points
-
-    :param data: Data
-    :type data: np.ndarray
-    :param center_point: Integer index of starting point for line
-    :type center_point: int
-    :param off_point: Integer index of ending point for line
-    :type off_point: int
-    :param normalize: Normalize distance between start and end of line to 1,
-        defaults to True
-    :type normalize: bool, optional
-    :param weights: How much weight to put on each dimension, defaults to None
-    :type weights: np.ndarray, optional
-    :return: Scalar projection array
-    :rtype: np.ndarray
-    """
-
-    vec = data[off_point, :] - data[center_point, :]
-    data = data - data[center_point, :]
-
-    if weights is not None:
-        vec *= weights
-        data = np.multiply(data, weights[None, :])
-
-    scalar_proj = np.dot(data, vec) / np.linalg.norm(vec)
-
-    if normalize:
-        _center_scale = scalar_proj[center_point]
-        _off_scale = scalar_proj[off_point]
-        scalar_proj = (scalar_proj - _center_scale) / (_off_scale - _center_scale)
-
-    return scalar_proj
-
-
-def get_centroids(comps, cluster_vector):
-    return {k: _get_centroid(comps[cluster_vector == k, :])
-            for k in np.unique(cluster_vector)}
-
-
-def _get_centroid(comps):
-    return np.sum((comps - np.mean(comps, axis=0)[None, :]) ** 2, axis=1).argmin()
-
-
-def _order_dict_to_lists(order_dict):
-    """
-    Convert dict to two ordered lists
-    """
-
-    # Create a doubly-linked list
-    _dll = {}
-
-    for start, (end, _, _) in order_dict.items():
-
-        if start in _dll:
-
-            if _dll[start][1] is not None:
-                raise ValueError(f"Both {_dll[start][1]} and {end} follow {start}")
-
-            _dll[start] = (_dll[start][0], end)
-
-        else:
-
-            _dll[start] = (None, end)
-
-        if end in _dll:
-
-            if _dll[end][0] is not None:
-                raise ValueError(f"Both {_dll[end][0]} and {start} precede {end}")
-
-            _dll[end] = (start, _dll[end][1])
-
-        else:
-
-            _dll[end] = (start, None)
-
-    _start = None
-
-    for k in order_dict.keys():
-
-        if _dll[k][0] is None and _start is not None:
-            raise ValueError("Both {k} and {_start} lack predecessors")
-
-        elif _dll[k][0] is None:
-            _start = k
-
-    if _start is None:
-        _start = list(order_dict.keys())[0]
-
-    _order = [_start]
-    _time = [order_dict[_start][1], order_dict[_start][2]]
-    _next = _dll[_start][1]
-
-    while _next is not None and _next != _start:
-        _order.append(_next)
-        _next = _dll[_next][1]
-        if _next in order_dict and _next != _start:
-            _time.append(order_dict[_next][1])
-
-    return _order, _time
