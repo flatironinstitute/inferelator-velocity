@@ -245,6 +245,12 @@ def program_time_summary(
             _times[_times > wrap_time] = _times[_times > wrap_time] - wrap_time
             _times[_times < 0] = _times[_times < 0] + wrap_time
 
+        # Just mask out unwanted times
+        # Moderately easier than sorting it out after binning
+        if time_limits is not None:
+            _times = _times.astype(float)
+            _times[(_times >= time_limits[0]) & (_times <= time_limits[1])] = np.nan
+
         refs[ax_key_pref + 'hist'] = _plot_time_histogram(
             _times,
             adata.obs[obs_group_key].values,
@@ -253,10 +259,6 @@ def program_time_summary(
             group_colors=cluster_colors,
             bins=hist_bins
         )
-
-        if time_limits is not None:
-            ax[ax_key_pref + 'hist'].set_xlim(((time_limits[0] - _times.min()) / hist_bins,
-                                               time_limits[1] / _times.max() * hist_bins))
 
     # BUILD LEGEND ####
     if ax_key_pref + 'cbar' in ax:
@@ -384,7 +386,9 @@ def _get_time_hist_data(time_data, group_data, bins, group_order=None):
 
     cuts = np.linspace(np.min(time_data), np.max(time_data), bins)
     return [np.bincount(pd.cut(time_data[group_data == x],
-                               cuts, labels=np.arange(len(cuts) - 1)).dropna(),
+                               cuts,
+                               labels=np.arange(len(cuts) - 1)
+                        ).dropna(),
                         minlength=len(cuts) - 1) for x in group_order]
 
 
