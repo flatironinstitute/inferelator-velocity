@@ -180,7 +180,9 @@ def program_time_summary(
     if wrap_time is not None:
         _centroids = _centroids + [adata.uns[uns_key]['centroids'][cluster_order[0]]]
 
-    _var_exp = adata.uns[uns_key]['variance_ratio'] * 100
+    _var_exp = adata.uns[uns_key]['variance_ratio'].copy()
+    _var_exp /= np.sum(adata.uns[uns_key]['variance_ratio'])
+    _var_exp *= 100
 
     # BUILD PC1/PC2 PLOT ####
     if ax_key_pref + 'pca1' in ax:
