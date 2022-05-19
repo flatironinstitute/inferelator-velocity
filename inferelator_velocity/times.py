@@ -323,16 +323,13 @@ def scalar_projection(data, center_point, off_point, normalize=True, weights=Non
     """
 
     vec = data[off_point, :] - data[center_point, :]
+    data = data - data[center_point, :]
 
     if weights is not None:
         vec *= weights
+        data = np.multiply(data, weights[None, :])
 
-    scalar_proj = np.dot(
-        data - data[center_point, :],
-        vec
-    )
-
-    scalar_proj = scalar_proj / np.linalg.norm(vec)
+    scalar_proj = np.dot(data, vec) / np.linalg.norm(vec)
 
     if normalize:
         _center_scale = scalar_proj[center_point]
