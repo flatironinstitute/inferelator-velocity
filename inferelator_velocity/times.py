@@ -214,6 +214,9 @@ def calculate_times(count_data,
         'path': []
     }
 
+    _var_weights = adata.uns['pca']['variance'].copy()
+    _var_weights /= np.sum(adata.uns['pca']['variance'])
+
     for start, (end, left_time, right_time) in cluster_order_dict.items():
 
         if _tp_centroids[end] == 0:
@@ -231,7 +234,8 @@ def calculate_times(count_data,
         times[_idx] = scalar_projection(
             adata.obsm['X_pca'],
             centroids[start],
-            centroids[end]
+            centroids[end],
+            weights=_var_weights
         )[_idx] * (right_time - left_time) + left_time
 
         group['index'][_idx] = len(group['names'])
@@ -299,7 +303,7 @@ def wrap_times(data, program, wrap_time):
     return data
 
 
-def scalar_projection(data, center_point, off_point, normalize=True):
+def scalar_projection(data, center_point, off_point, normalize=True, weights=None):
     """
     Scalar projection of data onto a line defined by two points
 
@@ -312,11 +316,16 @@ def scalar_projection(data, center_point, off_point, normalize=True):
     :param normalize: Normalize distance between start and end of line to 1,
         defaults to True
     :type normalize: bool, optional
+    :param weights: How much weight to put on each dimension, defaults to None
+    :type weights: np.ndarray, optional
     :return: Scalar projection array
     :rtype: np.ndarray
     """
 
     vec = data[off_point, :] - data[center_point, :]
+
+    if weights is not None:
+        vec *= weights
 
     scalar_proj = np.dot(
         data - data[center_point, :],

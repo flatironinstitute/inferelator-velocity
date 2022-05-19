@@ -180,6 +180,8 @@ def program_time_summary(
     if wrap_time is not None:
         _centroids = _centroids + [adata.uns[uns_key]['centroids'][cluster_order[0]]]
 
+    _var_exp = adata.uns[uns_key]['variance_ratio'] * 100
+
     # BUILD PC1/PC2 PLOT ####
     if ax_key_pref + 'pca1' in ax:
         refs[ax_key_pref + 'pca1'] = _plot_pca(
@@ -191,8 +193,8 @@ def program_time_summary(
             alpha=alpha
         )
 
-        ax[ax_key_pref + 'pca1'].set_xlabel("PC1")
-        ax[ax_key_pref + 'pca1'].set_ylabel("PC2")
+        ax[ax_key_pref + 'pca1'].set_xlabel(f"PC1 ({_var_exp[0]:.1f}%)")
+        ax[ax_key_pref + 'pca1'].set_ylabel(f"PC2 ({_var_exp[1]:.1f}%)")
 
     # BUILD PC1/PC3 PLOT ####
     if ax_key_pref + 'pca2' in ax:
@@ -203,8 +205,8 @@ def program_time_summary(
             alpha=alpha
         )
 
-        ax[ax_key_pref + 'pca2'].set_xlabel("PC1")
-        ax[ax_key_pref + 'pca2'].set_ylabel("PC3")
+        ax[ax_key_pref + 'pca2'].set_xlabel(f"PC1 ({_var_exp[0]:.1f}%)")
+        ax[ax_key_pref + 'pca2'].set_ylabel(f"PC3 ({_var_exp[2]:.1f}%)")
 
     # BUILD CLUSTER-CLUSTER PC1/PC2 PLOTS ####
     for i, _pname in enumerate(_panels):
