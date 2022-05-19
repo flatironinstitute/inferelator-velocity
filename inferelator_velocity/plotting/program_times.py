@@ -256,12 +256,14 @@ def program_time_summary(
         # Just mask out unwanted times
         # Moderately easier than sorting it out after binning
         if time_limits is not None:
-            _times = _times.astype(float)
-            _times[(_times >= time_limits[0]) & (_times <= time_limits[1])] = np.nan
+            _tidx = _times >= time_limits[0]
+            _tidx &= _times <= time_limits[1]
+        else:
+            _tidx = np.ones_like(_times, dtype=bool)
 
         refs[ax_key_pref + 'hist'] = _plot_time_histogram(
-            _times,
-            adata.obs[obs_group_key].values,
+            _times[_tidx],
+            adata.obs[obs_group_key].values[_tidx],
             ax[ax_key_pref + 'hist'],
             group_order=cluster_order,
             group_colors=cluster_colors,
@@ -443,8 +445,8 @@ def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colo
     ax.set_xticks([x * 10 for x in range(n_xtick)])
     ax.set_xticklabels(
         FormatStrFormatter(xtick_format).format_ticks(
-            np.linspace(time_data.min(),
-                        time_data.max(),
+            np.linspace(np.nanmin(time_data),
+                        np.nanmax(time_data),
                         n_xtick)
         ),
         rotation=90
