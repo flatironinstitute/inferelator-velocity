@@ -384,7 +384,7 @@ def _get_time_hist_data(time_data, group_data, bins, group_order=None):
     if group_order is None:
         group_order = np.unique(group_data)
 
-    cuts = np.linspace(np.min(time_data), np.max(time_data), bins)
+    cuts = np.linspace(np.nanmin(time_data), np.nanmax(time_data), bins)
     return [np.bincount(pd.cut(time_data[group_data == x],
                                cuts,
                                labels=np.arange(len(cuts) - 1)
