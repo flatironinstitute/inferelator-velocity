@@ -20,19 +20,19 @@ def scalar_projection(data, center_point, off_point, normalize=True, weights=Non
     :rtype: np.ndarray
     """
 
-    vec = data[off_point, :] - data[center_point, :]
     data = data - data[center_point, :]
 
     if weights is not None:
-        vec *= weights
         data = np.multiply(data, weights[None, :])
 
+    vec = data[off_point, :]
+
+    # Calculate scalar projection: (data (dot) vec) / ||vec||
     scalar_proj = np.dot(data, vec) / np.linalg.norm(vec)
 
+    # Normalize projection such that vec is unit length
     if normalize:
-        _center_scale = scalar_proj[center_point]
-        _off_scale = scalar_proj[off_point]
-        scalar_proj = (scalar_proj - _center_scale) / (_off_scale - _center_scale)
+        scalar_proj = scalar_proj / np.linalg.norm(vec)
 
     return scalar_proj
 
