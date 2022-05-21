@@ -215,13 +215,6 @@ def calculate_times(count_data,
         'path': []
     }
 
-    # Weight components by explained variance
-    # Highest component is 1; rest are sqrt ratio explained variance
-    _var_weights = adata.uns['pca']['variance'].copy()
-    _var_weights /= np.max(_var_weights)
-    _var_weights = np.sqrt(_var_weights)
-    adata.uns['pca']['component_weights'] = _var_weights
-
     for start, (end, left_time, right_time) in cluster_order_dict.items():
 
         if _tp_centroids[end] == 0:
@@ -240,7 +233,6 @@ def calculate_times(count_data,
             adata.obsm['X_pca'],
             centroids[start],
             centroids[end],
-            weights=_var_weights
         )[_idx] * (right_time - left_time) + left_time
 
         group['index'][_idx] = len(group['names'])
