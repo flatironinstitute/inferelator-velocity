@@ -135,7 +135,7 @@ def calc_decay(expression_data, velocity_data, include_alpha=True,
     :param velocity_data: Gene velocity data [N Observations x M Genes]
     :type velocity_data: np.ndarray (float)
     :param decay_quantiles: The quantile of observations to fit lambda,
-        defaults to (0.00, 0.025)
+        defaults to (0.00, 0.05)
     :type decay_quantiles: tuple, optional
     :param alpha_quantile: The quantile of observations to estimate alpha,
         defaults to 0.975
@@ -162,20 +162,16 @@ def calc_decay(expression_data, velocity_data, include_alpha=True,
     n, m = expression_data.shape
 
     # Estimate parameters for each gene individually
-    gene_results = [
+    results = np.array([
         _estimate_for_gene(
             expression_data[:, i],
             velocity_data[:, i],
             decay_quantiles,
             alpha_quantile=alpha_quantile if include_alpha else None,
         ) for i in lstatus(m)
-        ]
+        ])
 
-    decay_est = np.array([x[0] for x in gene_results])
-    alpha_est = np.array([x[1] for x in gene_results])
-    decay_se = np.array([x[2] for x in gene_results])
-
-    return decay_est * -1, decay_se, alpha_est
+    return results[:, 0] * -1, results[:, 2], results[:, 1]
 
 
 def _estimate_for_gene(
@@ -184,16 +180,31 @@ def _estimate_for_gene(
     decay_quantiles,
     alpha_quantile=None,
 ):
+    """
+    Estimate parameters for a single gene
+
+    :param expression_data: Expression data
+    :type expression_data: np.ndarray
+    :param velocity_data: Velocity Data
+    :type velocity_data: np.ndarray
+    :param decay_quantiles: Min & max percentiles
+        for expression/velocity surface estimate
+    :type decay_quantiles: tuple(float, float)
+    :param alpha_quantile: Percentile for alpha surface estimate,
+        defaults to None
+    :type alpha_quantile: float, optional
+    :return: Decay parameter lambda, production parameter alpha,
+        decay paramater standard error
+    :rtype: float, float, float
+    """
 
     if alpha_quantile is not None:
-
         a = _estimate_alpha(
             velocity_data,
             alpha_quantile,
         )
 
     else:
-
         a = 0.
 
     d, dse = _estimate_decay(
