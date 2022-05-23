@@ -61,3 +61,70 @@ def order_dict_to_lists(order_dict):
 def vprint(*args, verbose=False, **kwargs):
     if verbose:
         print(*args, **kwargs)
+
+
+def check_matrix_sizes(a, b):
+
+    if a is None or b is None:
+        return True
+
+    elif a.shape != b.shape:
+        raise ValueError(
+            f"Expression data {a.shape} ",
+            f"and velocity data {b.shape} ",
+            "are not the same size"
+        )
+
+    else:
+        return True
+
+
+def check_vector_sizes(a, b, axis=None):
+
+    if a is None or b is None:
+        return True
+
+    elif axis is None and a.size != b.size:
+        raise ValueError(
+            "Vectors are not the same size: ",
+            f"{a.size} & {b.size} do not align"
+        )
+
+    elif axis == 0 and a.shape[1] != b.shape[0]:
+        raise ValueError(
+            f"Vector {b.shape} is not the same size as ",
+            f"Matrix columns {a.shape}"
+        )
+
+    elif axis == 1 and a.shape[0] != b.shape[0]:
+        raise ValueError(
+            f"Vector {b.shape} is not the same size as ",
+            f"Matrix rows {a.shape}"
+        )
+
+    else:
+        return True
+
+
+def make_vector_2D(vec):
+    """
+    Make sure a vector is a 2D column vector
+
+    :param vec: Vector
+    :type vec: np.ndarray
+    :raises ValueError: Raises a ValueError if this is not a vector
+    :return: Vector [N, 1]
+    :rtype: np.ndarray
+    """
+
+    if vec.ndim > 2:
+        raise ValueError(f"Vector shape {vec.shape} invalid")
+
+    elif vec.ndim == 1:
+        return vec.reshape(-1, 1)
+
+    elif vec.ndim == 2 and vec.shape[1] != 1:
+        raise ValueError(f"Vector shape {vec.shape} invalid")
+
+    else:
+        return vec

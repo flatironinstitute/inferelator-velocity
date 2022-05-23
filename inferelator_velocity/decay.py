@@ -2,6 +2,14 @@ import numpy as np
 import scipy.stats
 from tqdm import trange, tqdm
 
+from .utils.math import least_squares
+
+MAX_ITER = 100
+TOL = 1e-6
+
+DECAY_QUANT = (0.0, 0.05)
+ALPHA_QUANT = 0.975
+
 
 def calc_decay_sliding_windows(expression_data, velocity_data, time_data, n_windows=None, centers=None, width=None,
                                include_alpha=True, bootstrap_estimates=False, **kwargs):
@@ -115,9 +123,10 @@ def calc_decay_bootstraps(expression_data, velocity_data, n_bootstraps=15, boots
 
     return np.nanmean(decays, axis=0), ci, alphas
 
+
 def calc_decay(expression_data, velocity_data, include_alpha=True,
-               decay_quantiles=(0.00, 0.025), alpha_quantile=0.975,
-               add_pseudocount=False, log_expression=False, lstatus=True):
+               decay_quantiles=DECAY_QUANT, alpha_quantile=ALPHA_QUANT,
+               lstatus=True):
     """
     Estimate decay constant lambda for dX/dt = -lambda X + alpha
 
@@ -131,12 +140,6 @@ def calc_decay(expression_data, velocity_data, include_alpha=True,
     :param alpha_quantile: The quantile of observations to estimate alpha,
         defaults to 0.975
     :type alpha_quantile: float, optional
-    :param add_pseudocount: Add a pseudocount to expression for ratio
-        calculation, defaults to False
-    :type add_pseudocount: bool, optional
-    :param log_expression: Log expression for ratio calculation,
-        defaults to False
-    :type log_expression: bool, optional
     :param lstatus: Display status bar, defaults to True
     :type lstatus: bool, optional
     :raises ValueError: Raises a ValueError if arguments are invalid
@@ -158,81 +161,149 @@ def calc_decay(expression_data, velocity_data, include_alpha=True,
 
     n, m = expression_data.shape
 
-    # Get the velocity / expression ratio
-    # add_pseudocount and log_expression influence this only
-    # not decay calculations later
-    if add_pseudocount and log_expression:
-        ratio_data = np.full_like(velocity_data, np.nan, dtype=float)
-        ratio_data = np.divide(velocity_data, np.log1p(expression_data),
-                               out=ratio_data, where=expression_data != 0)
-    elif add_pseudocount:
-        ratio_data = np.divide(velocity_data, expression_data + 1)
+    # Estimate parameters for each gene individually
+    gene_results = [
+        _estimate_for_gene(
+            expression_data[:, i],
+            velocity_data[:, i],
+            decay_quantiles,
+            alpha_quantile=alpha_quantile if include_alpha else None,
+        ) for i in lstatus(m)
+        ]
+
+    decay_est = np.array([x[0] for x in gene_results])
+    alpha_est = np.array([x[1] for x in gene_results])
+    decay_se = np.array([x[2] for x in gene_results])
+
+    return decay_est * -1, decay_se, alpha_est
+
+
+def _estimate_for_gene(
+    expression_data,
+    velocity_data,
+    decay_quantiles,
+    alpha_quantile=None,
+):
+
+    if alpha_quantile is not None:
+
+        a = _estimate_alpha(
+            velocity_data,
+            alpha_quantile,
+        )
+
     else:
-        ratio_data = np.full_like(velocity_data, np.nan, dtype=float)
-        np.divide(velocity_data, np.log(expression_data) if log_expression else expression_data,
-                  out=ratio_data, where=expression_data != 0)
+
+        a = 0.
+
+    d, dse = _estimate_decay(
+        expression_data,
+        velocity_data,
+        decay_quantiles,
+        alpha_est=a
+    )
+
+    return d, a, dse
+
+
+def _estimate_decay(
+    expression_data,
+    velocity_data,
+    decay_quantiles,
+    alpha_est=None
+):
+    """
+    Estimate decay constant for a single gene.
+    Remove estimate of transcriptional output before estimating
+    decay constant, if provided.
+
+    :param expression_data: Expression data
+    :type expression_data: np.ndarray
+    :param velocity_data: Velocity Data
+    :type velocity_data: np.ndarray
+    :param decay_quantiles: Min & max percentiles
+        for expression/velocity surface estimate
+    :type decay_quantiles: tuple(float, float)
+    :param alpha_est: Estimate of alpha, defaults to None
+    :type alpha_est: float, optional
+    :return: Estimate of decay parameter & standard error
+    :rtype: float, float
+    """
+
+    # If there is an estimate for alpha,
+    # modify velocity to remove the alpha component
+    if alpha_est is not None:
+        velocity_data = np.subtract(
+            velocity_data,
+            alpha_est
+        )
+
+    # Get the velocity / expression ratio
+    # Mask to NaN where expression is 0
+    ratio_data = np.divide(
+        velocity_data,
+        expression_data,
+        out=np.full_like(velocity_data, np.nan, dtype=float),
+        where=expression_data != 0
+    )
 
     # Find the quantile cutoffs for decay curve fitting
-    ratio_cuts = np.nanquantile(ratio_data, decay_quantiles, axis=0)
+    ratio_cuts = np.nanquantile(ratio_data, decay_quantiles)
 
-    # Find the observations which should not be included for decay constant model
-    keep_observations = np.greater_equal(ratio_data, ratio_cuts[0, :][None, :])
-    keep_observations &= np.less_equal(ratio_data, ratio_cuts[1, :][None, :])
-
-    # Estimate the maximum velocity
-    if include_alpha:
-        alpha_est = np.nanquantile(velocity_data, alpha_quantile, axis=0).flatten()
-        np.maximum(alpha_est, 0, out=alpha_est)
-    else:
-        alpha_est = None
-
-    # Transpose so gene data is memory-contiguous
-
-    if include_alpha:
-        # Remove the maximum velocity from the velocity matrix
-        velo = np.subtract(velocity_data.T, alpha_est[:, None])
-    else:
-        velo = np.array(velocity_data.T, copy=True)
-
-
-    expr = np.array(expression_data.T, copy=True)
-    keep_observations = np.array(keep_observations.T, order="C")
-
-    def _lstsq(x, y):
-        if x.shape[0] == 0:
-            return 0
-        sl, ssr, rank, s = np.linalg.lstsq(x, y, rcond=None)
-        return sl[0][0]
+    # Find the observations at the edge of the velocity/expression surface
+    # Use those to estimate the decay constant
+    keep_observations = np.greater_equal(ratio_data, ratio_cuts[0])
+    keep_observations &= np.less_equal(ratio_data, ratio_cuts[1])
 
     # Estimate lambda_hat via OLS slope and enforce positive lambda
-    decay_est = np.array([_lstsq(expr[i, keep_observations[i, :]].reshape(-1, 1),
-                                 velo[i, keep_observations[i, :]].reshape(-1, 1))
-                          for i in lstatus(m)])
+    ols_slope_se = least_squares(
+        expression_data[keep_observations],
+        velocity_data[keep_observations]
+    )
 
-    np.minimum(decay_est, 0, out=decay_est)
+    # Get decay standard errors
+    # Throw away errors that are for rectified decays
+    decay_se = ols_slope_se[1] if ols_slope_se[0] >= 0 else 0.
 
-    # Estimate standard error of lambda_hat
-    se_est = np.array([_calc_se(expr[i, keep_observations[i, :]].reshape(-1, 1),
-                                velo[i, keep_observations[i, :]].reshape(-1, 1),
-                                decay_est[i])
-                       for i in lstatus(m)])
+    # Get decay coefficients
+    # Ceiling at zero
+    decay = min(ols_slope_se[0], 0)
 
-    return decay_est * -1, se_est, alpha_est
+    return decay, decay_se
 
 
-def _calc_se(x, y, slope):
+def _estimate_alpha(
+    velocity_data,
+    alpha_quantile,
+    decay_est=None,
+    expression_data=None
+):
+    """
+    Estimate transcriptional output
+    Remove estimate of decay before estimating transcriptional
 
-    if x.shape[0] == 0:
-        return 0
+    :param velocity_data: Velocity Data
+    :type velocity_data: np.ndarray
+    :param alpha_quantile: Percentile for alpha estimate
+    :type alpha_quantile: float
+    :param decay_est: Estimate of lambda (decay constant),
+        defaults to None
+    :type decay_est: float, optional
+    :param expression_data: Expression Data, defaults to None
+    :type expression_data: np.ndarray, optional
+    :return: Estimate of alpha
+    :rtype: float
+    """
 
-    mse_x = np.sum(np.square(x - np.nanmean(x)))
-    if mse_x == 0:
-        return 0
+    if decay_est is not None and expression_data is None:
+        raise ValueError("expression_data must be set if decay_est is")
 
-    elif slope == 0:
-        return np.mean(np.square(y - np.nanmean(y))) / mse_x
+    if decay_est is not None and decay_est != 0:
+        velocity_data = velocity_data - expression_data * decay_est
 
-    else:
-        mse_y = np.sum(np.square(y - np.dot(x, slope)))
-        se_y = mse_y / (len(y) - 1)
-        return se_y / mse_x
+    alpha_est = np.nanquantile(
+        velocity_data,
+        alpha_quantile
+    )
+
+    return max(alpha_est, 0)

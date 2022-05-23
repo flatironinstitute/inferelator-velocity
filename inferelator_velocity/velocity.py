@@ -67,7 +67,7 @@ def _calc_local_velocity(expr, time_axis, center_index, wrap_time=None):
     x_for_hat = _np.dot(_np.linalg.inv(_np.dot(time_axis.T, time_axis)), time_axis.T)
 
     # Return the slope for each gene as velocity
-    return _np.array([_np.dot(x_for_hat, y_diff[:, i])[0] for i in range(m)])
+    return _np.dot(x_for_hat, y_diff)
 
 
 def _find_local(expr, neighbor_graph, n_neighbors):
