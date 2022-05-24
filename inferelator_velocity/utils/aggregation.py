@@ -30,4 +30,4 @@ def aggregate_sliding_window_times(
         else:
             return agg_func(expression_data, **agg_kwargs)
 
-    return np.array([_agg(x) for x in range(centers)])
+    return np.array([_agg(x) for x in centers]), centers
