@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def order_dict_to_lists(order_dict):
     """
     Convert dict to two ordered lists
@@ -128,3 +131,20 @@ def make_vector_2D(vec):
 
     else:
         return vec
+
+
+def get_bins(data, n_bins=None, centers=None, width=None):
+
+    if n_bins is not None and centers is None and width is None:
+        min_time, max_time = np.nanmin(data), np.nanmax(data)
+
+        half_width = (max_time - min_time) / (2 * n_bins + 1)
+        centers = np.linspace(min_time + half_width, max_time - half_width, num=n_bins)
+
+    elif centers is not None and width is not None:
+        half_width = width / 2
+
+    else:
+        raise ValueError("Pass number of bins, or pass both centers and width")
+
+    return centers, half_width

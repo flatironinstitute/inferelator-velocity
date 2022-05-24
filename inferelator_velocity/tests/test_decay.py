@@ -64,7 +64,7 @@ class TestDecay(unittest.TestCase):
 
         correct_alpha = np.maximum(np.max(velo, axis=0), 0)
 
-        correct_ses = np.zeros_like(decay_se)
+        correct_ses = np.array([0.2287143, 0., 0., 0.])
         correct_decays = np.array([0.323975, 1.,  0., 0.])
 
         npt.assert_array_almost_equal(alpha_est, correct_alpha)

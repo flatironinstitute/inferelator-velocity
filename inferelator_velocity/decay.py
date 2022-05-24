@@ -3,6 +3,7 @@ import scipy.stats
 from tqdm import trange, tqdm
 
 from .utils.math import least_squares
+from .utils.misc import get_bins
 
 MAX_ITER = 100
 TOL = 1e-6
@@ -40,17 +41,12 @@ def calc_decay_sliding_windows(expression_data, velocity_data, time_data, n_wind
 
     n, m = expression_data.shape
 
-    if n_windows is not None and centers is None and width is None:
-        min_time, max_time = np.nanmin(time_data), np.nanmax(time_data)
-
-        half_width = (max_time - min_time) / (2 * n_windows + 1)
-        centers = np.linspace(min_time + half_width, max_time - half_width, num=n_windows)
-
-    elif centers is not None and width is not None:
-        half_width = width / 2
-
-    else:
-        raise ValueError("Pass n_windows or pass both centers and width")
+    centers, half_width = get_bins(
+        time_data,
+        n_bins=n_windows,
+        centers=centers,
+        width=width
+    )
 
     def _calc_window_decay(center):
         lowend, highend = center - half_width, center + half_width
@@ -181,7 +177,9 @@ def _estimate_for_gene(
     alpha_quantile=None,
 ):
     """
-    Estimate parameters for a single gene
+    Estimate parameters for a single gene,
+    based on dx/dt = - \\lambda * x + \\alpha,
+    where \\lambda and \\alpha > 0
 
     :param expression_data: Expression data
     :type expression_data: np.ndarray
@@ -198,6 +196,7 @@ def _estimate_for_gene(
     :rtype: float, float, float
     """
 
+    # Estimate alpha based on maximum velovity
     if alpha_quantile is not None:
         a = _estimate_alpha(
             velocity_data,
@@ -291,7 +290,8 @@ def _estimate_alpha(
 ):
     """
     Estimate transcriptional output
-    Remove estimate of decay before estimating transcriptional
+    If an estimate of decay is provided, remove
+    decay component before estimating transcriptional output
 
     :param velocity_data: Velocity Data
     :type velocity_data: np.ndarray
