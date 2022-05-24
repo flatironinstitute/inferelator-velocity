@@ -274,7 +274,7 @@ def _estimate_decay(
 
     # Get decay standard errors
     # Throw away errors that are for rectified decays
-    decay_se = ols_slope_se[1] if ols_slope_se[0] >= 0 else 0.
+    decay_se = ols_slope_se[1] if ols_slope_se[0] <= 0 else 0.
 
     # Get decay coefficients
     # Ceiling at zero
