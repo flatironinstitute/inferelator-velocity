@@ -24,10 +24,11 @@ def aggregate_sliding_window_times(
         lowend, highend = center - half_width, center + half_width
 
         keep_idx = (times >= lowend) & (times <= highend) & ~np.isnan(times)
+        data = expression_data[keep_idx]
 
-        if np.sum(keep_idx) < 1:
-            return np.nan
-        else:
-            return agg_func(expression_data, **agg_kwargs)
+        try:
+            return agg_func(data, **agg_kwargs)
+        except TypeError:
+            return [a(data, **agg_kwargs) for a in agg_func]
 
     return np.array([_agg(x) for x in centers]), centers
