@@ -1,8 +1,6 @@
 import unittest
 
-import scipy.sparse as sps
 import numpy as np
-import numpy.testing as npt
 
 from inferelator_velocity.times import (program_times, calculate_times)
 
@@ -27,9 +25,6 @@ LAB = np.array(['a'] * 3 + ['b'] * 3 + ['c'] * 4)
 class TestTimeEsts(unittest.TestCase):
 
     def test_times(self):
-
-        print(EXPR)
-        print(LAB)
 
         times = calculate_times(
             EXPR,
