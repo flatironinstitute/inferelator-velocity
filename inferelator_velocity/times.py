@@ -177,8 +177,6 @@ def calculate_times(count_data,
 
     centroid_indices = [centroids[k] for k in centroids.keys()]
 
-    print(centroids)
-
     vprint(f"Identified centroids for groups {', '.join(centroids.keys())}",
            verbose=verbose)
 
