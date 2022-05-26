@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.sparse.csgraph import shortest_path
+from scipy.sparse import (issparse as _is_sparse,
+                          isspmatrix_csr as _is_csr)
 import itertools
 
 
@@ -49,9 +51,12 @@ def get_shortest_paths(graph, select_nodes, graph_method="D"):
         # While the current position is different from the end position
         # Walk backwards through the predecessor array
         # Putting each location in the path list
-        while current_loc != end:
-            current_loc = graph_pred[end_idx, current_loc]
-            path.append(current_loc)
+        try:
+            while current_loc != end:
+                current_loc = graph_pred[end_idx, current_loc]
+                path.append(current_loc)
+        except IndexError:
+            raise RuntimeError("Graph is not fully connected; pathing failed")
 
         # Put the list in the output array in the correct position
         # And then reverse it for the other direction
@@ -91,10 +96,105 @@ def get_total_path(shortest_paths, centroid_order_dict, centroid_order_list):
                                     [end_label == x for x in centroid_order_list]][0]
 
         # Set the position of the key node on the total path
-        total_path_centroids[start_label] = len(total_path)
+        total_path_centroids[start_label] = max(len(total_path) - 1, 0)
         total_path.extend(_link_path[int(i > 0):])
 
         if end_label not in total_path_centroids:
-            total_path_centroids[end_label] = len(total_path)
+            total_path_centroids[end_label] = len(total_path) - 1
 
     return total_path, total_path_centroids
+
+def local_optimal_knn(
+    neighbor_graph,
+    nn_vector,
+    keep='smallest'
+):
+    """
+    Modify a k-NN graph in place to have a specific number of
+    non-zero values k per row based on a vector of k-values
+
+    :param neighbor_graph: N x N matrix with edge values.
+    :type neighbor_graph: np.ndarray, sp.sparse.csr_matrix
+    :param nn_vector: Vector of `k` values per row
+    :type nn_vector: np.ndarray
+    :param keep: Keep the 'largest' or 'smallest' non-zero values
+    :type keep: str
+    :raise ValueError: Raise a ValueError if neighbor_graph is a
+        non-CSR sparse matrix or if keep is not 'smallest' or
+        'largest'
+    :return: Return a reference to neighbor_graph
+    :rtype: np.ndarray, sp.sparse.csr_matrix
+    """
+
+    n, _ = neighbor_graph.shape
+
+    neighbor_sparse = _is_sparse(neighbor_graph)
+
+    if neighbor_sparse and not _is_csr(neighbor_graph):
+        raise ValueError("Sparse matrices must be CSR")
+    elif neighbor_sparse:
+        neighbor_graph.eliminate_zeros()
+
+    if keep == 'smallest':
+        def _nn_slice(k):
+            return slice(None, k)
+
+    elif keep == 'largest':
+        def _nn_slice(k):
+            return slice(-1 * k, None)
+    else:
+        raise ValueError("keep must be 'smallest' or 'largest'")
+
+    _smallest = keep == 'smallest'
+
+    for i in range(n):
+
+        n_slice = neighbor_graph[i, :]
+        k = nn_vector[i]
+
+        if k >= n:
+            continue
+
+        # Modify CSR matrix if passed
+        if _is_sparse(neighbor_graph):
+
+            if n_slice.data.shape[0] > k:
+
+                # Find the indices of values to retain from sparse data
+                keepers = np.argsort(n_slice.data)[_nn_slice(k)]
+
+                # Write them into a zero array shaped like data
+                new_data = np.zeros_like(n_slice.data)
+                new_data[keepers] = n_slice.data[keepers]
+
+                # Put the data back into the original sparse object
+                # Based on the sparse idx
+                _ngd_slice = slice(
+                    neighbor_graph.indptr[i],
+                    neighbor_graph.indptr[i+1]
+                )
+                neighbor_graph.data[_ngd_slice] = new_data
+            else:
+                continue
+
+        # Modify numpy array if passed
+        else:
+
+            # Use a masked array to block out zeros
+            keepers = np.ma.masked_array(
+                n_slice,
+                mask=n_slice == 0
+            ).argsort(endwith=_smallest)[_nn_slice(k)]
+
+            # Write them into a zero array shaped like a row
+            new_data = np.zeros_like(n_slice)
+            new_data[keepers] = n_slice[keepers]
+
+            # Write the new data into the original array
+            neighbor_graph[i, :] = new_data
+
+    # Make sure to remove zeros from the sparse array
+    if neighbor_sparse:
+        neighbor_graph.eliminate_zeros()
+
+    return neighbor_graph

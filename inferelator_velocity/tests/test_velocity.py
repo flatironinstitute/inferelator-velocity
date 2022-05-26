@@ -51,3 +51,20 @@ class TestVelocity(unittest.TestCase):
                                   wrap_time=0)
 
         npt.assert_array_almost_equal(correct_velo, velo_wrap)
+
+    def test_calc_velocity_wraps(self):
+
+        knn = np.diag(np.ones(N - 1), -1) + np.diag(np.ones(N - 1), 1)
+
+        correct_velo = np.tile(T_SLOPES[:, None], N).T
+        velo = calc_velocity(T_EXPRESSION, TIME, knn, N,
+                             wrap_time=None)
+
+        npt.assert_array_almost_equal(correct_velo, velo)
+
+        wrap_times = (TIME) % 7
+
+        print(wrap_times)
+
+        velo_wrap = calc_velocity(T_EXPRESSION, wrap_times, knn, N, wrap_time=6)
+        npt.assert_array_almost_equal(correct_velo, velo_wrap)

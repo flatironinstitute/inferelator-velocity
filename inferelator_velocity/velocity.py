@@ -13,12 +13,13 @@ def calc_velocity(expr, time_axis, neighbor_graph, n_neighbors, wrap_time=None):
     :return: Samples x Genes numpy with velocity data
     """
 
-    n_gen = _find_local(expr, neighbor_graph, n_neighbors)
-    return _np.vstack([_calc_local_velocity(expr[n_idx, :].copy(),
-                                            time_axis[n_idx].copy(),
-                                            (n_idx == i).nonzero()[0][0],
-                                            wrap_time=wrap_time)
-                       for i, n_idx in n_gen])
+    return _np.vstack(
+        [_calc_local_velocity(expr[n_idx, :].copy(),
+                              time_axis[n_idx].copy(),
+                              (n_idx == i).nonzero()[0][0],
+                              wrap_time=wrap_time)
+         for i, n_idx in _find_local(expr, neighbor_graph, n_neighbors)]
+        )
 
 
 def _calc_local_velocity(expr, time_axis, center_index, wrap_time=None):
@@ -84,7 +85,9 @@ def _find_local(expr, neighbor_graph, n_neighbors):
     neighbor_sparse = _is_sparse(neighbor_graph)
 
     for i in trange(n):
+
         n_slice = neighbor_graph[i, :]
+
         if neighbor_sparse:
             if n_slice.data.shape[0] > n_neighbors:
                 keepers = n_slice.indices[_np.argsort(n_slice.data)[-1 * n_neighbors:]]

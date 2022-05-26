@@ -177,6 +177,8 @@ def calculate_times(count_data,
 
     centroid_indices = [centroids[k] for k in centroids.keys()]
 
+    print(centroids)
+
     vprint(f"Identified centroids for groups {', '.join(centroids.keys())}",
            verbose=verbose)
 
@@ -200,7 +202,7 @@ def calculate_times(count_data,
     _nearest_point_on_path = shortest_path(
         adata.obsp['distances'],
         directed=False,
-        indices=_total_path[:-1],
+        indices=_total_path,
         return_predecessors=False,
         method=graph_method
     ).argmin(axis=0)
@@ -223,7 +225,7 @@ def calculate_times(count_data,
             _right_centroid = _tp_centroids[end]
 
         _idx = _nearest_point_on_path >= _tp_centroids[start]
-        _idx &= _nearest_point_on_path < _right_centroid
+        _idx &= _nearest_point_on_path <= _right_centroid
 
         vprint(f"Assigned times to {np.sum(_idx)} cells [{start} - {end}] "
                f"conected by {_right_centroid - _tp_centroids[start]} points",

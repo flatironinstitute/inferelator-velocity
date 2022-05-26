@@ -33,6 +33,8 @@ def mcv_pcs(count_data, n=5, n_pcs=100, random_seed=800, p=0.5, metric='mse'):
     elif metric == 'r2':
         metric = r2_score
 
+    n_pcs = min(n_pcs, *map(lambda x: x - 1, count_data.shape))
+
     metric_arr = np.zeros((n, n_pcs + 1), dtype=float)
 
     # Use a single progress bar for nested loop
