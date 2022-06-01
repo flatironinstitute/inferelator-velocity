@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.sparse.csgraph import shortest_path
 from scipy.sparse import (issparse as _is_sparse,
-                          isspmatrix_csr as _is_csr)
+                          isspmatrix_csr as _is_csr,
+                          csr_matrix as _csr)
 import itertools
 
 
@@ -223,7 +224,18 @@ def set_diag(X, diag):
         pass
 
     elif _is_sparse(X):
-        X.setdiag(diag)
+        ### UGLY HACK TO AVOID SPARSITY CHANGES ###
+        _remove_diag = X.diagonal()
+
+        if np.all(_remove_diag == 0.):
+            return X
+
+        _remove_idx = np.arange(len(_remove_diag))
+
+        X -= _csr(
+            (_remove_diag, (_remove_idx, _remove_idx)),
+            shape=X.shape
+        )
 
     else:
         np.fill_diagonal(X, diag)

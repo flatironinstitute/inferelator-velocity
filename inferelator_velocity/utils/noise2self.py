@@ -72,7 +72,9 @@ def knn_noise2self(count_data, neighbors=None, npcs=None, verbose=False, metric=
             n_pcs=pc
         )
 
+        # Enforce diagonal zeros on graph
         # Single precision floats
+        set_diag(data_obj.obsp['distances'], 0)
         data_obj.obsp['distances'] = data_obj.obsp['distances'].astype(np.float32)
 
         mses[i, :] = _search_k(
@@ -84,10 +86,18 @@ def knn_noise2self(count_data, neighbors=None, npcs=None, verbose=False, metric=
     op_pc = np.argmin(np.min(mses, axis=1))
     op_k = np.argmin(mses[op_pc, :])
 
-    print(
+    vprint(
         f"Global optimal graph at {npcs[op_pc]} PCs "
-        f"and {neighbors[op_k]} neighbors"
+        f"and {neighbors[op_k]} neighbors",
+        verbose=verbose
     )
+
+    sc.pp.neighbors(
+        data_obj,
+        n_neighbors=np.max(neighbors),
+        n_pcs=npcs[op_pc]
+    )
+    set_diag(data_obj.obsp['distances'], 0)  
 
     # Search for the optimal number of k for each obs
     # For the global optimal n_pc
@@ -151,8 +161,6 @@ def _search_k(X, graph, k, by_row=False):
 
 
 def _dist_to_row_stochastic(graph):
-
-    set_diag(graph, 0)
 
     if sps.issparse(graph):
 
