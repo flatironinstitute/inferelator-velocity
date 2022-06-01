@@ -2,8 +2,9 @@ import unittest
 
 import numpy as np
 import numpy.testing as npt
+import scipy.sparse as sps
 
-from inferelator_velocity.utils.math import (get_centroids, scalar_projection)
+from inferelator_velocity.utils.math import (scalar_projection, mean_squared_error)
 
 
 N = 1000
@@ -20,7 +21,7 @@ DATA = np.vstack((DATA_SEED * DATA_SPACE[0],
                   DATA_SEED * DATA_SPACE[3])).T
 
 
-class TestVelocity(unittest.TestCase):
+class TestScalarProjections(unittest.TestCase):
 
     def test_scalar_no_weight(self):
 
@@ -62,3 +63,81 @@ class TestVelocity(unittest.TestCase):
         )
 
         npt.assert_array_almost_equal(sp, sl)
+
+
+class TestMSE(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+
+        rng = np.random.default_rng(12345)
+
+        cls.X = rng.random((100, 20))
+        cls.Y = rng.random((100, 20))
+        cls.Z = np.mean((cls.X - cls.Y) ** 2)
+        cls.Z_row = np.mean((cls.X - cls.Y) ** 2, axis=1)
+        cls.Z_noY = np.mean(cls.X ** 2)
+        cls.Z_noY_row = np.mean(cls.X ** 2, axis=1)
+
+        return super().setUpClass()
+
+    def test_dense_dense(self):
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(self.X, self.Y),
+            self.Z
+        )
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(self.X, self.Y, by_row=True),
+            self.Z_row
+        )
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(self.X, None),
+            self.Z_noY
+        )
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(self.X, None, by_row=True),
+            self.Z_noY_row
+        )
+
+    def test_sparse_dense(self):
+
+        X = sps.csr_matrix(self.X)
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(X, self.Y),
+            self.Z
+        )
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(X, self.Y, by_row=True),
+            self.Z_row
+        )
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(X, None),
+            self.Z_noY
+        )
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(X, None, by_row=True),
+            self.Z_noY_row
+        )
+
+    def test_sparse_sparse(self):
+
+        X = sps.csr_matrix(self.X)
+        Y = sps.csr_matrix(self.Y)
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(X, Y),
+            self.Z
+        )
+
+        npt.assert_array_almost_equal(
+            mean_squared_error(X, Y, by_row=True),
+            self.Z_row
+        )

@@ -1,9 +1,24 @@
 import os
 from setuptools import setup, find_packages
 
-install_requires = ["numpy", "pandas>=1.0", "anndata>=0.8", "scanpy", "scipy", "joblib", "sklearn", "tqdm"]
-tests_require = ["coverage", "pytest"]
-version = "0.1.0"
+install_requires = [
+    "numpy",
+    "pandas>=1.0",
+    "anndata>=0.8",
+    "scanpy",
+    "scipy",
+    "joblib",
+    "sklearn",
+    "tqdm",
+    "sparse_dot_mkl"
+]
+
+tests_require = [
+    "coverage",
+    "pytest"
+]
+
+version = "0.2.0"
 
 # Description from README.md
 base_dir = os.path.dirname(os.path.abspath(__file__))

@@ -4,4 +4,4 @@ from .velocity import calc_velocity
 from .decay import calc_decay, calc_decay_sliding_windows
 
 from . import plotting as pl
-from . import utils as ut
+from . import utils as util

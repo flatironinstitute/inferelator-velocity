@@ -135,6 +135,12 @@ def local_optimal_knn(
     elif neighbor_sparse:
         neighbor_graph.eliminate_zeros()
 
+    if n != len(nn_vector):
+        raise ValueError(
+            f"{len(nn_vector)}-length vector wrong size "
+            f" for graph {neighbor_graph.shape}"
+        )
+
     if keep == 'smallest':
         def _nn_slice(k):
             return slice(None, k)
@@ -198,3 +204,28 @@ def local_optimal_knn(
         neighbor_graph.eliminate_zeros()
 
     return neighbor_graph
+
+
+def set_diag(X, diag):
+    """
+    Set diagonal of matrix X.
+    Safe for dense or sparse matrices
+
+    :param X: Numeric matrix
+    :type X: np.ndarray, sp.spmatrix
+    :param diag: Value to fill
+    :type diag: Numeric
+    :return: Numeric matrix with set diagonal
+    :rtype: np.ndarray, sp.spmatrix
+    """
+
+    if diag is None:
+        pass
+
+    elif _is_sparse(X):
+        X.setdiag(diag)
+
+    else:
+        np.fill_diagonal(X, diag)
+
+    return X

@@ -1,5 +1,7 @@
 import numpy as np
+import scipy.sparse as sps
 from .misc import make_vector_2D
+
 
 def scalar_projection(data, center_point, off_point, normalize=True, weights=None):
     """
@@ -85,3 +87,54 @@ def _calc_se(x, y, slope):
         mse_y = np.sum(np.square(y - np.dot(x, slope)))
         se_y = mse_y / (len(y) - 1)
         return se_y / mse_x
+
+
+def mean_squared_error(x, y=None, by_row=False):
+    """
+    Calculate MSE. If y is None, treat as all zeros
+
+    :param x: 2D matrix
+    :type x: np.ndarray, sp.spmatrix
+    :param y: 2D matrix, defaults to None
+    :type y: np.ndarray, sp.spmatrix, optional
+    :param by_row: Return MSE as a row vector, defaults to False
+    :type by_row: bool, optional
+    :raises ValueError: Raise a ValueError if x and y are different sizes
+    :return: MSE
+    :rtype: numeric, np.ndarray
+    """
+
+    if y is not None and x.shape != y.shape:
+        raise ValueError(
+            f"Calculating MSE for X {x.shape}"
+            f" and Y {y.shape} failed"
+        )
+
+    # No Y provided
+    if y is None and sps.issparse(x):
+        ssr = x.power(2).sum(axis=1).A1
+
+    elif y is None:
+        ssr = (x ** 2).sum(axis=1)
+
+    # X and Y are sparse
+    elif sps.issparse(x) and sps.issparse(y):
+        ssr = x - y
+        ssr.data **= 2
+        ssr = ssr.sum(axis=1).A1
+
+    # At least one of X and Y are dense
+    else:
+        ssr = x - y
+
+        if isinstance(ssr, np.matrix):
+            ssr = ssr.A
+
+        ssr **= 2
+        ssr = ssr.sum(axis=1)
+
+    if by_row:
+        return ssr / (x.shape[1])
+
+    else:
+        return np.sum(ssr) / (x.size)
