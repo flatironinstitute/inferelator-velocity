@@ -44,6 +44,9 @@ class TestRowStochastic(unittest.TestCase):
         npt.assert_almost_equal(np.ones_like(row_sums), row_sums)
         self.assertEqual(len(row_sums), M)
 
+        self.assertTrue(sps.isspmatrix_csr(row_stochastic))
+
+
     def test_small_k(self):
         graph = _knn(3)
 
@@ -55,12 +58,20 @@ class TestRowStochastic(unittest.TestCase):
         npt.assert_almost_equal(np.ones_like(row_sums), row_sums)
         self.assertEqual(len(row_sums), M)
 
+        self.assertTrue(sps.isspmatrix_csr(row_stochastic))
+
+
     def test_zero_k(self):
 
         row_stochastic = _dist_to_row_stochastic(sps.csr_matrix((M, M), dtype=float))
         row_sums = row_stochastic.sum(axis=1).A1
 
         npt.assert_almost_equal(np.zeros_like(row_sums), row_sums)
+
+        self.assertTrue(sps.isspmatrix_csr(row_stochastic))
+
+
+class TestKNNSearch(unittest.TestCase):
 
     def test_ksearch_regression(self):
 

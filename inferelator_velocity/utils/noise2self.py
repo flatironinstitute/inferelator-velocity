@@ -123,7 +123,13 @@ def knn_noise2self(
 
     return npcs[op_pc], neighbors[op_k], neighbors[local_k]
 
-def _search_k(X, graph, k, by_row=False):
+
+def _search_k(
+    X,
+    graph,
+    k,
+    by_row=False
+):
     """
     Find optimal number of neighbors for a given graph
 
@@ -174,11 +180,22 @@ def _dist_to_row_stochastic(graph):
 
     if sps.issparse(graph):
 
-        rowsum = graph.sum(axis = 1).A
+        rowsum = graph.sum(axis = 1).A1
         rowsum[rowsum == 0] = 1.
 
-        return graph.multiply(1 / rowsum)
-
+        # Dot product between inverse rowsum diagonalized
+        # and graph.
+        # Somehow faster then element-wise \_o_/
+        return dot(
+            sps.diags(
+                (1 / rowsum),
+                offsets=0,
+                shape=graph.shape,
+                format='csr',
+                dtype=graph.dtype
+                ),
+                graph
+            )
     else:
 
         rowsum = graph.sum(axis=1)

@@ -55,6 +55,7 @@ class TestOptKNN(unittest.TestCase):
         npt.assert_array_almost_equal(cs.indices, scorrect.indices)
         npt.assert_array_almost_equal(cs.indptr, scorrect.indptr)
         self.assertEqual(id(cs), id(self.sdist))
+        self.assertTrue(sps.isspmatrix_csr(cs))
 
     def test_smallest(self):
 
@@ -74,6 +75,8 @@ class TestOptKNN(unittest.TestCase):
         npt.assert_array_almost_equal(cs.indptr, scorrect.indptr)
         self.assertEqual(id(cs), id(self.sdist))
 
+        self.assertTrue(sps.isspmatrix_csr(cs))
+
     def test_k_0(self):
 
         correct = np.zeros_like(DIST)
@@ -91,6 +94,7 @@ class TestOptKNN(unittest.TestCase):
         npt.assert_array_almost_equal(cs.indices, scorrect.indices)
         npt.assert_array_almost_equal(cs.indptr, scorrect.indptr)
         self.assertEqual(id(cs), id(self.sdist))
+        self.assertTrue(sps.isspmatrix_csr(cs))
 
     def test_k_too_big(self):
 
@@ -109,6 +113,7 @@ class TestOptKNN(unittest.TestCase):
         npt.assert_array_almost_equal(cs.indices, scorrect.indices)
         npt.assert_array_almost_equal(cs.indptr, scorrect.indptr)
         self.assertEqual(id(cs), id(self.sdist))
+        self.assertTrue(sps.isspmatrix_csr(cs))
 
 
 class TestGetShortestPath(unittest.TestCase):
