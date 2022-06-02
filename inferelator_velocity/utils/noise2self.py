@@ -193,7 +193,7 @@ def _search_k(
         # Calculate mean squared error
         mses[i] = mean_squared_error(
             X_compare,
-            dot(k_graph, X, dense=True),
+            dot(k_graph, X, dense=not sps.issparse(X_compare)),
             by_row=by_row
         )
 
