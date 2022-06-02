@@ -83,6 +83,16 @@ class TestKNNSearch(unittest.TestCase):
             mse
         )
 
+    def test_ksearch_regression_sparse(self):
+
+        mse = _search_k(sps.csr_matrix(EXPR), DIST, np.arange(1, 7), X_compare=EXPR)
+        self.assertEqual(np.argmin(mse), 4)
+
+        npt.assert_almost_equal(
+            np.array([234.314, 166.83420601, 149.88290938, 143.72348837, 138.18590639, 139.83859323]),
+            mse
+        )
+
     def test_knn_select_stack_regression(self):
 
         opt_pc, opt_k, local_ks = knn_noise2self(
@@ -90,6 +100,31 @@ class TestKNNSearch(unittest.TestCase):
             np.arange(1, 11),
             np.array([3, 5, 7]),
             verbose=True
+        )
+
+        self.assertEqual(opt_pc, 3)
+        self.assertEqual(opt_k, 4)
+
+    def test_knn_select_stack_regression_sparse(self):
+
+        opt_pc, opt_k, local_ks = knn_noise2self(
+            sps.csr_matrix(EXPR),
+            np.arange(1, 11),
+            np.array([3, 5, 7]),
+            verbose=True
+        )
+
+        self.assertEqual(opt_pc, 3)
+        self.assertEqual(opt_k, 4)
+
+    def test_knn_select_stack_regression_sparse_but_flagged(self):
+
+        opt_pc, opt_k, local_ks = knn_noise2self(
+            sps.csr_matrix(EXPR),
+            np.arange(1, 11),
+            np.array([3, 5, 7]),
+            verbose=True,
+            use_sparse=False
         )
 
         self.assertEqual(opt_pc, 3)

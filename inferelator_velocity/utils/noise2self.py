@@ -32,7 +32,9 @@ def knn_noise2self(
     neighbors=None,
     npcs=None,
     verbose=False,
-    metric='euclidean'
+    metric='euclidean',
+    return_errors=False,
+    use_sparse=True
 ):
     """
     Select an optimal set of graph parameters based on noise2self
@@ -49,7 +51,10 @@ def knn_noise2self(
         defaults to False
     :type verbose: bool, optional
     :param metric: Distance metric to use, defaults to 'euclidean'
-    :type metric: str
+    :type metric: str, optional
+    :param return_errors: Return the mean square errors for global
+        neighbor/nPC search, defaults to False
+    :type return_errors: bool, optional
     :return: Global optimal # of PCs,
         global optimal k,
         local optimal k for each observation
@@ -70,6 +75,8 @@ def knn_noise2self(
 
     mses = np.zeros((len(npcs), len(neighbors)))
 
+    expr_data = data_obj.X if use_sparse or not sps.issparse(data_obj.X) else data_obj.X.A
+
     # Search for the smallest MSE for each n_pcs / k combination
     for i, pc in tqdm.tqdm(enumerate(npcs)):
         tqdm.tqdm.write(f"Searching graphs from {pc} PCs")
@@ -87,9 +94,10 @@ def knn_noise2self(
         data_obj.obsp['distances'] = data_obj.obsp['distances'].astype(np.float32)
 
         mses[i, :] = _search_k(
-            data_obj.X,
+            expr_data,
             data_obj.obsp['distances'],
-            neighbors
+            neighbors,
+            X_compare=expr_data
         )
 
     op_pc = np.argmin(np.min(mses, axis=1))
@@ -113,26 +121,36 @@ def knn_noise2self(
     set_diag(data_obj.obsp['distances'], 0)
     data_obj.obsp['distances'] = data_obj.obsp['distances'].astype(np.float32)
 
+    local_neighbors = np.arange(np.max(neighbors))
+
     # Search for the optimal number of k for each obs
     # For the global optimal n_pc
     local_k = np.argmin(
         _search_k(
-            data_obj.X,
+            expr_data,
             data_obj.obsp['distances'],
-            np.arange(np.max(neighbors)),
-            by_row=True
+            local_neighbors,
+            by_row=True,
+            X_compare=expr_data
         ),
         axis=0
     )
 
-    return npcs[op_pc], neighbors[op_k], neighbors[local_k]
+    optimals = npcs[op_pc], neighbors[op_k], local_neighbors[local_k]
+
+    if return_errors:
+        return optimals, mses
+
+    else:
+        return optimals
 
 
 def _search_k(
     X,
     graph,
     k,
-    by_row=False
+    by_row=False,
+    X_compare=None
 ):
     """
     Find optimal number of neighbors for a given graph
@@ -154,6 +172,8 @@ def _search_k(
     n, _ = X.shape
     n_k = len(k)
 
+    X_compare = X_compare if X_compare is not None else X
+
     mses = np.zeros(n_k) if not by_row else np.zeros((n_k, n))
 
     for i in tqdm.trange(n_k):
@@ -172,8 +192,8 @@ def _search_k(
 
         # Calculate mean squared error
         mses[i] = mean_squared_error(
-            X,
-            dot(k_graph, X),
+            X_compare,
+            dot(k_graph, X, dense=True),
             by_row=by_row
         )
 
