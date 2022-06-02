@@ -27,7 +27,13 @@ N_PCS = np.arange(5, 115, 10)
 N_NEIGHBORS = np.arange(15, 115, 10)
 
 
-def knn_noise2self(count_data, neighbors=None, npcs=None, verbose=False, metric=None):
+def knn_noise2self(
+    count_data,
+    neighbors=None,
+    npcs=None,
+    verbose=False,
+    metric='euclidean'
+):
     """
     Select an optimal set of graph parameters based on noise2self
 
@@ -42,6 +48,8 @@ def knn_noise2self(count_data, neighbors=None, npcs=None, verbose=False, metric=
     :param verbose: Verbose output to stdout,
         defaults to False
     :type verbose: bool, optional
+    :param metric: Distance metric to use, defaults to 'euclidean'
+    :type metric: str
     :return: Global optimal # of PCs,
         global optimal k,
         local optimal k for each observation
@@ -69,7 +77,8 @@ def knn_noise2self(count_data, neighbors=None, npcs=None, verbose=False, metric=
         sc.pp.neighbors(
             data_obj,
             n_neighbors=np.max(neighbors),
-            n_pcs=pc
+            n_pcs=pc,
+            metric=metric
         )
 
         # Enforce diagonal zeros on graph
@@ -95,9 +104,10 @@ def knn_noise2self(count_data, neighbors=None, npcs=None, verbose=False, metric=
     sc.pp.neighbors(
         data_obj,
         n_neighbors=np.max(neighbors),
-        n_pcs=npcs[op_pc]
+        n_pcs=npcs[op_pc],
+        metric=metric
     )
-    set_diag(data_obj.obsp['distances'], 0)  
+    set_diag(data_obj.obsp['distances'], 0)
 
     # Search for the optimal number of k for each obs
     # For the global optimal n_pc
