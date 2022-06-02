@@ -107,7 +107,11 @@ def knn_noise2self(
         n_pcs=npcs[op_pc],
         metric=metric
     )
+
+    # Enforce diagonal zeros on graph
+    # Single precision floats
     set_diag(data_obj.obsp['distances'], 0)
+    data_obj.obsp['distances'] = data_obj.obsp['distances'].astype(np.float32)
 
     # Search for the optimal number of k for each obs
     # For the global optimal n_pc
