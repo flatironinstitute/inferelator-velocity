@@ -63,10 +63,11 @@ def knn_noise2self(
     :param return_errors: Return the mean square errors for global
         neighbor/nPC search, defaults to False
     :type return_errors: bool, optional
-    :return: Global optimal # of PCs,
+    :return: Optimal k-NN graph
+        global optimal # of PCs,
         global optimal k,
         local optimal k for each observation
-    :rtype: int, int, np.ndarray [int]
+    :rtype: sp.sparse.csr_matrix, int, int, np.ndarray [int]
     """
 
     neighbors = N_NEIGHBORS if neighbors is None else neighbors
@@ -129,11 +130,11 @@ def knn_noise2self(
     set_diag(data_obj.obsp['distances'], 0)
     data_obj.obsp['distances'] = data_obj.obsp['distances'].astype(np.float32)
 
-    local_neighbors = np.arange(np.max(neighbors))
+    local_neighbors = np.arange(np.min(neighbors), np.max(neighbors))
 
     # Search for the optimal number of k for each obs
     # For the global optimal n_pc
-    local_k = np.argmin(
+    local_k = local_neighbors[np.argmin(
         _search_k(
             expr_data,
             data_obj.obsp['distances'],
@@ -142,9 +143,14 @@ def knn_noise2self(
             X_compare=expr_data
         ),
         axis=0
-    )
+    )]
 
-    optimals = npcs[op_pc], neighbors[op_k], local_neighbors[local_k]
+    optimals = (
+        local_optimal_knn(data_obj.obsp['distances'], local_k),
+        npcs[op_pc],
+        neighbors[op_k],
+        local_k
+    )
 
     if return_errors:
         return optimals, mses
