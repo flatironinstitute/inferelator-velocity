@@ -73,7 +73,7 @@ def program_graphs(data,
                verbose=verbose)
 
         if 'programs' not in data.uns:
-            data.uns['programs'] = {[UNS_SUBKEY.format(prog=prog)]: npc}
+            data.uns['programs'] = {UNS_SUBKEY.format(prog=prog): npc}
         else:
             data.uns['programs'][UNS_SUBKEY.format(prog=prog)] = npc
 
