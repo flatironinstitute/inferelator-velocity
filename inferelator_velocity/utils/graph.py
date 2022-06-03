@@ -127,7 +127,7 @@ def local_optimal_knn(
     :rtype: np.ndarray, sp.sparse.csr_matrix
     """
 
-    n, _ = neighbor_graph.shape
+    n, m = neighbor_graph.shape
 
     neighbor_sparse = _is_sparse(neighbor_graph)
 
@@ -142,13 +142,16 @@ def local_optimal_knn(
             f" for graph {neighbor_graph.shape}"
         )
 
+    # Define functions that select the inverse of
+    # the k largest or smallest values
+    # So those values can be zeroed
     if keep == 'smallest':
-        def _nn_slice(k):
-            return slice(None, k)
+        def _nn_slice(k, n):
+            return slice(k, None)
 
     elif keep == 'largest':
-        def _nn_slice(k):
-            return slice(-1 * k, None)
+        def _nn_slice(k, n):
+            return slice(None, n - k)
     else:
         raise ValueError("keep must be 'smallest' or 'largest'")
 
@@ -164,28 +167,24 @@ def local_optimal_knn(
         # Modify CSR matrix if passed
         if _is_sparse(neighbor_graph):
 
-            _ngd_slice = slice(
-                neighbor_graph.indptr[i],
-                neighbor_graph.indptr[i+1]
-            )
-
             _ngd_nnz = neighbor_graph.indptr[i+1] - neighbor_graph.indptr[i]
 
             if _ngd_nnz > k:
 
-                _ngd_data = neighbor_graph.data[_ngd_slice]
+                # Get row-specific nonzero data from sparse object
+                _ngd_data = neighbor_graph.data[
+                    neighbor_graph.indptr[i]:
+                    neighbor_graph.indptr[i+1]
+                ]
 
-                # Find the indices of values to retain from sparse data
-                keepers = np.argsort(_ngd_data)[_nn_slice(k)]
+                # Set all the values that should not be kept to zero
+                # By argsorting them and slicing only the indexes to zero
+                _ngd_data[
+                    np.argsort(
+                        _ngd_data
+                    )[_nn_slice(k, _ngd_nnz)]
+                ] = 0.
 
-                # Write them into a zero array shaped like data
-                new_data = np.zeros_like(_ngd_data)
-                new_data[keepers] = _ngd_data[keepers]
-
-                # Put the data back into the original sparse object
-                # Based on the sparse idx
-
-                neighbor_graph.data[_ngd_slice] = new_data
             else:
                 continue
 
@@ -195,17 +194,13 @@ def local_optimal_knn(
             n_slice = neighbor_graph[i, :]
 
             # Use a masked array to block out zeros
-            keepers = np.ma.masked_array(
+            droppers = np.ma.masked_array(
                 n_slice,
                 mask=n_slice == 0
-            ).argsort(endwith=_smallest)[_nn_slice(k)]
-
-            # Write them into a zero array shaped like a row
-            new_data = np.zeros_like(n_slice)
-            new_data[keepers] = n_slice[keepers]
+            ).argsort(endwith=_smallest)[_nn_slice(k, m)]
 
             # Write the new data into the original array
-            neighbor_graph[i, :] = new_data
+            neighbor_graph[i, droppers] = 0.
 
     # Make sure to remove zeros from the sparse array
     if neighbor_sparse:
