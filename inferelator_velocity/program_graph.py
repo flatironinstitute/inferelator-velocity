@@ -4,7 +4,7 @@ from .utils.noise2self import knn_noise2self
 from .utils import vprint
 
 OBSP_KEY = "program_{prog}_distances"
-UNS_SUBKEY = "program_{prog}_npcs"
+UNS_SUBKEY = "program_{prog}_graph_optimal_npcs"
 
 def program_graphs(data,
     layer="X",
@@ -64,6 +64,7 @@ def program_graphs(data,
             neighbors=neighbors,
             npcs=npcs,
             verbose=verbose,
+            use_sparse=use_sparse
         )
 
         vprint(f"Embedded optimal graph for {prog} "
@@ -71,6 +72,9 @@ def program_graphs(data,
                f"from {npc} PCs",
                verbose=verbose)
 
-        data.uns['programs'][UNS_SUBKEY.format(prog=prog)] = npc
+        if 'programs' not in data.uns:
+            data.uns['programs'] = {[UNS_SUBKEY.format(prog=prog)]: npc}
+        else:
+            data.uns['programs'][UNS_SUBKEY.format(prog=prog)] = npc
 
     return data
