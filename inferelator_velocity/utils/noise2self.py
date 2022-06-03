@@ -90,10 +90,16 @@ def knn_noise2self(
 
     expr_data = data_obj.X if use_sparse or not sps.issparse(data_obj.X) else data_obj.X.A
 
+    tqdm_pbar = tqdm.tqdm(
+        enumerate(npcs),
+        postfix=f"{npcs[0]} PCs",
+        bar_format='{l_bar}{bar}{r_bar}',
+        total=len(npcs)
+    )
+
     # Search for the smallest MSE for each n_pcs / k combination
-    tqdm_pbar = tqdm.tqdm(enumerate(npcs))
     for i, pc in tqdm_pbar :
-        tqdm_pbar.set_description(f"{pc} PCs", refresh=True)
+        tqdm_pbar.postfix = f"{npcs[min(i + 1, len(npcs) - 1)]} PCs"
 
         sc.pp.neighbors(
             data_obj,
@@ -135,7 +141,11 @@ def knn_noise2self(
     set_diag(data_obj.obsp['distances'], 0)
     data_obj.obsp['distances'] = data_obj.obsp['distances'].astype(np.float32)
 
-    local_neighbors = np.arange(np.min(neighbors), np.max(neighbors))
+    # Search space for k-neighbors
+    local_neighbors = np.arange(
+        np.min(neighbors) if len(neighbors) > 1 else 0, 
+        np.max(neighbors)
+    )
 
     # Search for the optimal number of k for each obs
     # For the global optimal n_pc
