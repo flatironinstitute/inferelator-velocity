@@ -63,6 +63,10 @@ def knn_noise2self(
     :param return_errors: Return the mean square errors for global
         neighbor/nPC search, defaults to False
     :type return_errors: bool, optional
+    :param use_sparse: Use sparse data structures (slower).
+        Will densify a sparse expression matrix (faster, more memory) if False,
+        defaults to True
+    :type use_sparse: bool
     :return: Optimal k-NN graph
         global optimal # of PCs,
         global optimal k,

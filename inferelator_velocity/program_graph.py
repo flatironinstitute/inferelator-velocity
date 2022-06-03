@@ -12,6 +12,7 @@ def program_graphs(data,
     programs=('0', '1'),
     neighbors=None,
     npcs=None,
+    use_sparse=True,
     verbose=False
 ):
     """
@@ -31,6 +32,10 @@ def program_graphs(data,
     :param npcs: Number of PCs to use to embed graph,
         defaults to None (5 to 105 by 10s)
     :type npcs: np.ndarray, optional
+    :param use_sparse: Use sparse data structures (slower).
+        Will densify a sparse expression matrix (faster, more memory) if False,
+        defaults to True
+    :type use_sparse: bool
     :param verbose: Print detailed status, defaults to False
     :type verbose: bool, optional
     :return: AnnData object with `program_{id}_distances` obps key
