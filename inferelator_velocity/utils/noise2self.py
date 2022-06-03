@@ -93,8 +93,7 @@ def knn_noise2self(
     # Search for the smallest MSE for each n_pcs / k combination
     tqdm_pbar = tqdm.tqdm(enumerate(npcs))
     for i, pc in tqdm_pbar :
-        tqdm_pbar.set_description(f"Graphs from {pc} PCs")
-        tqdm_pbar.refresh()
+        tqdm_pbar.set_description(f"{pc} PCs", refresh=True)
 
         sc.pp.neighbors(
             data_obj,
