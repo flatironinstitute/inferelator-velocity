@@ -94,6 +94,7 @@ def knn_noise2self(
     tqdm_pbar = tqdm.tqdm(enumerate(npcs))
     for i, pc in tqdm_pbar :
         tqdm_pbar.set_description(f"Graphs from {pc} PCs")
+        tqdm_pbar.refresh()
 
         sc.pp.neighbors(
             data_obj,
