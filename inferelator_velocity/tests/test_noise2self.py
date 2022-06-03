@@ -75,7 +75,7 @@ class TestKNNSearch(unittest.TestCase):
 
     def test_ksearch_regression(self):
 
-        mse = _search_k(EXPR, DIST, np.arange(1, 7))
+        mse = _search_k(EXPR.astype(float), DIST, np.arange(1, 7))
         self.assertEqual(np.argmin(mse), 4)
 
         npt.assert_almost_equal(
@@ -85,7 +85,13 @@ class TestKNNSearch(unittest.TestCase):
 
     def test_ksearch_regression_sparse(self):
 
-        mse = _search_k(sps.csr_matrix(EXPR), DIST, np.arange(1, 7), X_compare=EXPR)
+        mse = _search_k(
+            sps.csr_matrix(EXPR).astype(float),
+            DIST,
+            np.arange(1, 7),
+            X_compare=EXPR.astype(float)
+        )
+
         self.assertEqual(np.argmin(mse), 4)
 
         npt.assert_almost_equal(

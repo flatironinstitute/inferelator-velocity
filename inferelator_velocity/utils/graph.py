@@ -111,7 +111,7 @@ def local_optimal_knn(
     keep='smallest'
 ):
     """
-    Modify a k-NN graph in place to have a specific number of
+    Modify a k-NN graph *in place* to have a specific number of
     non-zero values k per row based on a vector of k-values
 
     :param neighbor_graph: N x N matrix with edge values.
@@ -156,7 +156,6 @@ def local_optimal_knn(
 
     for i in range(n):
 
-        n_slice = neighbor_graph[i, :]
         k = nn_vector[i]
 
         if k >= n:
@@ -165,27 +164,35 @@ def local_optimal_knn(
         # Modify CSR matrix if passed
         if _is_sparse(neighbor_graph):
 
-            if n_slice.data.shape[0] > k:
+            _ngd_slice = slice(
+                neighbor_graph.indptr[i],
+                neighbor_graph.indptr[i+1]
+            )
+
+            _ngd_nnz = neighbor_graph.indptr[i+1] - neighbor_graph.indptr[i]
+
+            if _ngd_nnz > k:
+
+                _ngd_data = neighbor_graph.data[_ngd_slice]
 
                 # Find the indices of values to retain from sparse data
-                keepers = np.argsort(n_slice.data)[_nn_slice(k)]
+                keepers = np.argsort(_ngd_data)[_nn_slice(k)]
 
                 # Write them into a zero array shaped like data
-                new_data = np.zeros_like(n_slice.data)
-                new_data[keepers] = n_slice.data[keepers]
+                new_data = np.zeros_like(_ngd_data)
+                new_data[keepers] = _ngd_data[keepers]
 
                 # Put the data back into the original sparse object
                 # Based on the sparse idx
-                _ngd_slice = slice(
-                    neighbor_graph.indptr[i],
-                    neighbor_graph.indptr[i+1]
-                )
+
                 neighbor_graph.data[_ngd_slice] = new_data
             else:
                 continue
 
         # Modify numpy array if passed
         else:
+
+            n_slice = neighbor_graph[i, :]
 
             # Use a masked array to block out zeros
             keepers = np.ma.masked_array(

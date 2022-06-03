@@ -134,7 +134,7 @@ def mean_squared_error(x, y=None, by_row=False):
         ssr = ssr.sum(axis=1)
 
     if by_row:
-        return ssr / (x.shape[1])
+        return ssr / x.shape[1]
 
     else:
-        return np.sum(ssr) / (x.size)
+        return np.sum(ssr) / x.size

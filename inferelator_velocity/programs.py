@@ -19,9 +19,17 @@ import pandas.api.types as pat
 mi_bins = 10
 
 
-def program_select(data, n_programs=2, n_comps=None, layer="X",
-                   mcv_loss_arr=None, n_jobs=-1, verbose=False,
-                   filter_to_hvg=True, metric='information'):
+def program_select(
+    data,
+    n_programs=2,
+    n_comps=None,
+    layer="X",
+    mcv_loss_arr=None,
+    n_jobs=-1,
+    verbose=False,
+    filter_to_hvg=True,
+    metric='information'
+):
     """
     Find a specific number of gene programs based on information distance between genes.
     Use raw counts as input.
@@ -207,6 +215,7 @@ def program_select(data, n_programs=2, n_comps=None, layer="X",
         'cluster_program_map': clust_map,
         'n_comps': n_comps,
         'n_programs': n_programs,
+        'program_names': np.unique(data.var['program']),
         'molecular_cv_loss': mcv_loss_arr
     }
 
