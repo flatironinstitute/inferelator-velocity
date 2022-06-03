@@ -91,8 +91,9 @@ def knn_noise2self(
     expr_data = data_obj.X if use_sparse or not sps.issparse(data_obj.X) else data_obj.X.A
 
     # Search for the smallest MSE for each n_pcs / k combination
-    for i, pc in tqdm.tqdm(enumerate(npcs)):
-        tqdm.tqdm.write(f"Searching graphs from {pc} PCs")
+    tqdm_pbar = tqdm.tqdm(enumerate(npcs))
+    for i, pc in tqdm_pbar :
+        tqdm_pbar.set_description(f"Graphs from {pc} PCs")
 
         sc.pp.neighbors(
             data_obj,
@@ -144,7 +145,8 @@ def knn_noise2self(
             data_obj.obsp['distances'],
             local_neighbors,
             by_row=True,
-            X_compare=expr_data
+            X_compare=expr_data,
+            pbar=True
         ),
         axis=0
     )]
@@ -168,7 +170,8 @@ def _search_k(
     graph,
     k,
     by_row=False,
-    X_compare=None
+    X_compare=None,
+    pbar=False
 ):
     """
     Find optimal number of neighbors for a given graph
@@ -182,6 +185,8 @@ def _search_k(
     :param by_row: Get optimal k for each observation,
         defaults to False
     :type by_row: bool, optional
+    :param pbar: Show a progress bar, defaults to False
+    :type pbar: bool
     :return: Mean Squared Error for each k [K] or
         for each k and each observation [K x M]
     :rtype: np.ndarray
@@ -194,7 +199,9 @@ def _search_k(
 
     mses = np.zeros(n_k) if not by_row else np.zeros((n_k, n))
 
-    for i in tqdm.trange(n_k):
+    rfunc = tqdm.trange if pbar else range
+
+    for i in rfunc(n_k):
 
         # Extract k non-zero neighbors from the graph
         k_graph = local_optimal_knn(
