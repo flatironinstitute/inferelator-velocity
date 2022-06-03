@@ -101,7 +101,7 @@ class TestKNNSearch(unittest.TestCase):
 
     def test_knn_select_stack_regression(self):
 
-        opt_pc, opt_k, local_ks = knn_noise2self(
+        _, opt_pc, opt_k, local_ks = knn_noise2self(
             EXPR,
             np.arange(1, 11),
             np.array([3, 5, 7]),
@@ -113,7 +113,7 @@ class TestKNNSearch(unittest.TestCase):
 
     def test_knn_select_stack_regression_sparse(self):
 
-        opt_pc, opt_k, local_ks = knn_noise2self(
+        _, opt_pc, opt_k, local_ks = knn_noise2self(
             sps.csr_matrix(EXPR),
             np.arange(1, 11),
             np.array([3, 5, 7]),
@@ -125,7 +125,7 @@ class TestKNNSearch(unittest.TestCase):
 
     def test_knn_select_stack_regression_sparse_but_flagged(self):
 
-        opt_pc, opt_k, local_ks = knn_noise2self(
+        _, opt_pc, opt_k, local_ks = knn_noise2self(
             sps.csr_matrix(EXPR),
             np.arange(1, 11),
             np.array([3, 5, 7]),
