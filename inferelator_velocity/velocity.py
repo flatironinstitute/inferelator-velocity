@@ -18,7 +18,7 @@ def calc_velocity(expr, time_axis, neighbor_graph, wrap_time=None):
                               (n_idx == i).nonzero()[0][0],
                               wrap_time=wrap_time)
          for i, n_idx in _find_local(expr, neighbor_graph)]
-        )
+    )
 
 
 def _calc_local_velocity(expr, time_axis, center_index, wrap_time=None):

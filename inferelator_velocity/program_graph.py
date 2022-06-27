@@ -6,10 +6,46 @@ from .utils import vprint
 OBSP_KEY = "program_{prog}_distances"
 UNS_SUBKEY = "program_{prog}_graph_optimal_npcs"
 
-def program_graphs(data,
+
+def global_graph(
+    data,
+    layer,
+    neighbors=None,
+    npcs=None,
+    use_sparse=True,
+    verbose=False
+):
+
+    vprint(f"Embedding graph from {data.shape} data",
+           verbose=verbose)
+
+    lref = data.X if layer == "X" else data.layers[layer]
+
+    data.obsp['noise2self_distance_graph'], npc, nn, nk = knn_noise2self(
+        lref,
+        neighbors=neighbors,
+        npcs=npcs,
+        verbose=verbose,
+        use_sparse=use_sparse
+    )
+
+    vprint(f"Embedded optimal graph "
+           f"containing {np.min(nk)} - {np.max(nk)} neighbors "
+           f"from {npc} PCs",
+           verbose=verbose)
+
+    if 'noise2self' not in data.uns:
+        data.uns['noise2self'] = {}
+
+    data.uns['noise2self']['npcs'] = npc
+    data.uns['noise2self']['neighbors'] = nn
+
+
+def program_graphs(
+    data,
     layer="X",
     program_var_key='program',
-    programs=('0', '1'),
+    programs=None,
     neighbors=None,
     npcs=None,
     use_sparse=True,
@@ -24,7 +60,7 @@ def program_graphs(data,
     :type layer: str, optional
     :param program_var_key: Key to find program IDs in var data, defaults to 'program'
     :type program_var_key: str, optional
-    :param programs: Program IDs to calculate times for, defaults to ('0', '1')
+    :param programs: Program IDs to calculate times for, defaults to None
     :type programs: tuple, optional
     :param neighbors: k values to search for global graph,
         defaults to None (5 to 105 by 10s)
@@ -42,7 +78,9 @@ def program_graphs(data,
     :rtype: ad.AnnData
     """
 
-    if type(programs) == list or type(programs) == tuple or isinstance(programs, np.ndarray):
+    if programs is None:
+        programs = data.uns['programs']['program_names']
+    elif type(programs) == list or type(programs) == tuple or isinstance(programs, np.ndarray):
         pass
     else:
         programs = [programs]

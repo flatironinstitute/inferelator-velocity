@@ -90,6 +90,7 @@ def knn_noise2self(
 
     expr_data = data_obj.X if use_sparse or not sps.issparse(data_obj.X) else data_obj.X.A
 
+    # Create a progress bar
     tqdm_pbar = tqdm.tqdm(
         enumerate(npcs),
         postfix=f"{npcs[0]} PCs",
@@ -98,21 +99,24 @@ def knn_noise2self(
     )
 
     # Search for the smallest MSE for each n_pcs / k combination
-    for i, pc in tqdm_pbar :
+    # Outer loop does PCs, because the distance graph has to be
+    # recalculated when PCs changes
+    for i, pc in tqdm_pbar:
+
+        # Update the progress bar
         tqdm_pbar.postfix = f"{npcs[min(i + 1, len(npcs) - 1)]} PCs"
 
-        sc.pp.neighbors(
+        # Calculate neighbor graph with the max number of neighbors
+        # Faster to select only a subset of edges than to recalculate
+        # (obviously)
+        _neighbor_graph(
             data_obj,
-            n_neighbors=np.max(neighbors),
-            n_pcs=pc,
+            pc,
+            np.max(neighbors),
             metric=metric
         )
 
-        # Enforce diagonal zeros on graph
-        # Single precision floats
-        set_diag(data_obj.obsp['distances'], 0)
-        data_obj.obsp['distances'] = data_obj.obsp['distances'].astype(np.float32)
-
+        # Search through the neighbors space
         mses[i, :] = _search_k(
             expr_data,
             data_obj.obsp['distances'],
@@ -120,6 +124,8 @@ def knn_noise2self(
             X_compare=expr_data
         )
 
+    # Get the index of the optimal PCs and k based on
+    # minimizing MSE
     op_pc = np.argmin(np.min(mses, axis=1))
     op_k = np.argmin(mses[op_pc, :])
 
@@ -129,21 +135,17 @@ def knn_noise2self(
         verbose=verbose
     )
 
-    sc.pp.neighbors(
+    # Recalculate a k-NN graph from the optimal # of PCs
+    _neighbor_graph(
         data_obj,
-        n_neighbors=np.max(neighbors),
-        n_pcs=npcs[op_pc],
+        npcs[op_pc],
+        np.max(neighbors),
         metric=metric
     )
 
-    # Enforce diagonal zeros on graph
-    # Single precision floats
-    set_diag(data_obj.obsp['distances'], 0)
-    data_obj.obsp['distances'] = data_obj.obsp['distances'].astype(np.float32)
-
     # Search space for k-neighbors
     local_neighbors = np.arange(
-        np.min(neighbors) if len(neighbors) > 1 else 0, 
+        np.min(neighbors) if len(neighbors) > 1 else 0,
         np.max(neighbors)
     )
 
@@ -156,13 +158,21 @@ def knn_noise2self(
             local_neighbors,
             by_row=True,
             X_compare=expr_data,
-            pbar=True
+            pbar=False
         ),
         axis=0
     )]
 
+    # Pack return object:
+    # Optimal (variable-k) graph
+    # Optimal # of PCs
+    # Optimal # of neighbors (global)
+    # Optimal # of neighbors (local)
     optimals = (
-        local_optimal_knn(data_obj.obsp['distances'], local_k),
+        local_optimal_knn(
+            data_obj.obsp['distances'],
+            local_k
+        ),
         npcs[op_pc],
         neighbors[op_k],
         local_k
@@ -173,6 +183,27 @@ def knn_noise2self(
 
     else:
         return optimals
+
+
+def _neighbor_graph(adata, pc, k, metric='euclidean'):
+    """
+    Build neighbor graph in an AnnDaya object
+    """
+
+    # Build neighbor graph
+    sc.pp.neighbors(
+        adata,
+        n_neighbors=k,
+        n_pcs=pc,
+        metric=metric
+    )
+
+    # Enforce diagonal zeros on graph
+    # Single precision floats
+    set_diag(adata.obsp['distances'], 0)
+    adata.obsp['distances'] = adata.obsp['distances'].astype(np.float32)
+
+    return adata
 
 
 def _search_k(
