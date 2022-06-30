@@ -9,7 +9,7 @@ UNS_SUBKEY = "program_{prog}_graph_optimal_npcs"
 
 def global_graph(
     data,
-    layer,
+    layer="X",
     neighbors=None,
     npcs=None,
     use_sparse=True,
