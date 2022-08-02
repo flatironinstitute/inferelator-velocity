@@ -27,7 +27,11 @@ def assign_genes_to_programs(
     """
 
     if programs is None:
-        programs = data.uns['programs']['program_names']
+        programs = [
+            p
+            for p in data.uns['programs']['program_names']
+            if p != '-1'
+        ]
     elif type(programs) == list or type(programs) == tuple or isinstance(programs, np.ndarray):
         pass
     else:
