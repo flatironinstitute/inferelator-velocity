@@ -6,7 +6,8 @@ from .utils.keys import OBS_TIME_KEY, N_BINS
 from .metrics import mutual_information
 from inferelator.regression.mi import _make_array_discrete
 
-def program_genes(
+
+def assign_genes_to_programs(
     data,
     layer="X",
     programs=None
