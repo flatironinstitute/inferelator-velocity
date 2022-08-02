@@ -41,7 +41,7 @@ def assign_genes_to_programs(
     # Unpack times into an array
     for i, p in enumerate(programs):
 
-        _tk = OBS_TIME_KEY.format(p)
+        _tk = OBS_TIME_KEY.format(prog=p)
 
         if _tk in data.obs:
             _times[:, i] = data.obs[_tk].values
