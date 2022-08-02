@@ -64,15 +64,26 @@ def information_distance(discrete_array, bins, n_jobs=-1, logtype=np.log,
         return d_xx
 
 
-def mutual_information(discrete_array, bins, n_jobs=-1, logtype=np.log):
+def mutual_information(
+    x,
+    bins,
+    y=None,
+    n_jobs=-1,
+    logtype=np.log
+):
     """
     Calculate mutual information between features of a discrete array
 
-    :param discrete_array: Discrete integer array [Obs x Features]
+    :param x: Discrete integer array [Obs x Features]
         with values from 0 to `bins`
-    :type discrete_array: np.ndarray [int]
+    :type x: np.ndarray [int]
     :param bins: Number of discrete bins in integer array
     :type bins: int
+    :param y: Discrete integer array [Obs x Features]
+        with values from 0 to `bins`
+        Information will be calculated between y and x features
+        if y is not None, if y is None between x and x features,
+        defaults to None
     :param n_jobs: Number of parallel jobs for joblib,
         -1 uses all cores
         None does not parallelize
@@ -84,15 +95,16 @@ def mutual_information(discrete_array, bins, n_jobs=-1, logtype=np.log):
     :rtype: np.ndarray [float]
     """
 
-    m, n = discrete_array.shape
+    m, n = x.shape if y is None else y.shape
 
     slices = list(gen_even_slices(n, effective_n_jobs(n_jobs)))
 
     views = Parallel(n_jobs=n_jobs)(
         delayed(_mi_slice)(
-            discrete_array,
+            x,
             i,
             bins,
+            y=y,
             logtype=logtype
         )
         for i in slices
@@ -156,14 +168,24 @@ def _entropy_slice(x, bins, logtype=np.log):
     return np.apply_along_axis(_entropy, 0, x)
 
 
-def _mi_slice(x, y_slicer, bins, logtype=np.log):
+def _mi_slice(x, y_slicer, bins, y=None, logtype=np.log):
 
-    y = x[:, y_slicer]
+    if y is None:
+        y = x[:, y_slicer]
+    else:
+        y = y[:, y_slicer]
+
     n1, n2 = x.shape[1], y.shape[1]
 
     mutual_info = np.empty((n1, n2), dtype=float)
     for i, j in itertools.product(range(n1), range(n2)):
-        mutual_info[i, j] = _calc_mi(_make_table(x[:, i], y[:, j], bins),
-                                     logtype=logtype)
+        mutual_info[i, j] = _calc_mi(
+            _make_table(
+                x[:, i],
+                y[:, j],
+                bins
+            ),
+            logtype=logtype
+        )
 
     return mutual_info

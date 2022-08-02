@@ -1,4 +1,7 @@
 import numpy as np
+import anndata as ad
+import pandas.api.types as pat
+import warnings
 
 
 def order_dict_to_lists(order_dict):
@@ -148,3 +151,23 @@ def get_bins(data, n_bins=None, centers=None, width=None):
         raise ValueError("Pass number of bins, or pass both centers and width")
 
     return centers, half_width
+
+
+def copy_count_layer(data, layer):
+
+    lref = data.X if layer == 'X' else data.layers[layer]
+
+    if not pat.is_integer_dtype(lref.dtype):
+        warnings.warn(
+            "program_select expects count data "
+            f"but {lref.dtype} data has been passed. "
+            "This data will be normalized and processed "
+            "as count data. If it is not count data, "
+            "these results will be nonsense."
+        )
+
+    d = ad.AnnData(lref, dtype=float)
+    d.layers['counts'] = lref.copy()
+    d.var = data.var.copy()
+
+    return d

@@ -7,12 +7,9 @@ from .utils.graph import get_shortest_paths, get_total_path
 from .utils.math import scalar_projection, get_centroids
 from .utils.mcv import mcv_pcs
 from .utils import vprint, order_dict_to_lists
+from .utils.keys import OBS_TIME_KEY, OBSM_PCA_KEY
 
 from scipy.sparse.csgraph import shortest_path
-
-
-OBS_KEY = "program_{prog}_time"
-OBSM_KEY ="program_{prog}_pca"
 
 
 def program_times(data,
@@ -63,8 +60,8 @@ def program_times(data,
 
     for prog in programs:
 
-        _obsk = OBS_KEY.format(prog=prog)
-        _obsmk = OBSM_KEY.format(prog=prog)
+        _obsk = OBS_TIME_KEY.format(prog=prog)
+        _obsmk = OBSM_PCA_KEY.format(prog=prog)
 
         _var_idx = data.var[program_var_key] == prog
 
@@ -281,7 +278,7 @@ def wrap_times(data, program, wrap_time):
     :rtype: ad.AnnData
     """
 
-    _obsk = OBS_KEY.format(prog=program)
+    _obsk = OBS_TIME_KEY.format(prog=program)
 
     _times = data.obs[_obsk].values
 

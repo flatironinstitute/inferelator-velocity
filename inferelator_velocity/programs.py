@@ -1,6 +1,5 @@
 import numpy as np
 import anndata as ad
-import warnings
 
 import scanpy as sc
 from scanpy.neighbors import compute_neighbors_umap, _compute_connectivities_umap
@@ -11,12 +10,9 @@ from sklearn.metrics import pairwise_distances
 
 from inferelator.regression.mi import _make_array_discrete
 from .utils.mcv import mcv_pcs
-from .utils import vprint
+from .utils import vprint, copy_count_layer
 from .metrics import information_distance
-
-import pandas.api.types as pat
-
-mi_bins = 10
+from .utils.keys import N_BINS
 
 
 def program_select(
@@ -84,20 +80,7 @@ def program_select(
 
     #### CREATE A NEW DATA OBJECT FOR THIS ANALYSIS ####
 
-    lref = data.X if layer == 'X' else data.layers[layer]
-
-    if not pat.is_integer_dtype(lref.dtype):
-        warnings.warn(
-            "program_select expects count data "
-            f"but {lref.dtype} data has been passed. "
-            "This data will be normalized and processed "
-            "as count data. If it is not count data, "
-            "these results will be nonsense."
-        )
-
-    d = ad.AnnData(lref, dtype=float)
-    d.layers['counts'] = lref.copy()
-    d.var = data.var.copy()
+    d = copy_count_layer(data, layer)
 
     #### PREPROCESSING / NORMALIZATION ####
 
@@ -153,8 +136,8 @@ def program_select(
 
     else:
         dists, mutual_info = information_distance(
-            _make_array_discrete(pca_expr, mi_bins, axis=0),
-            mi_bins,
+            _make_array_discrete(pca_expr, N_BINS, axis=0),
+            N_BINS,
             n_jobs=n_jobs,
             logtype=np.log2,
             return_information=True

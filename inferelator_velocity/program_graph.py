@@ -2,9 +2,7 @@ import numpy as np
 
 from .utils.noise2self import knn_noise2self
 from .utils import vprint
-
-OBSP_KEY = "program_{prog}_distances"
-UNS_SUBKEY = "program_{prog}_graph_optimal_npcs"
+from .utils.keys import OBSP_DIST_KEY, UNS_GRAPH_SUBKEY
 
 
 def global_graph(
@@ -87,7 +85,7 @@ def program_graphs(
 
     for prog in programs:
 
-        _obsp = OBSP_KEY.format(prog=prog)
+        _obsp = OBSP_DIST_KEY.format(prog=prog)
 
         _var_idx = data.var[program_var_key] == prog
 
@@ -111,8 +109,8 @@ def program_graphs(
                verbose=verbose)
 
         if 'programs' not in data.uns:
-            data.uns['programs'] = {UNS_SUBKEY.format(prog=prog): npc}
+            data.uns['programs'] = {UNS_GRAPH_SUBKEY.format(prog=prog): npc}
         else:
-            data.uns['programs'][UNS_SUBKEY.format(prog=prog)] = npc
+            data.uns['programs'][UNS_GRAPH_SUBKEY.format(prog=prog)] = npc
 
     return data
