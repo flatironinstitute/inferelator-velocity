@@ -95,7 +95,8 @@ def mutual_information(
     :rtype: np.ndarray [float]
     """
 
-    m, n = x.shape if y is None else y.shape
+    m = x.shape[1]
+    n = x.shape[1] if y is None else y.shape[1]
 
     slices = list(gen_even_slices(n, effective_n_jobs(n_jobs)))
 
@@ -110,7 +111,7 @@ def mutual_information(
         for i in slices
     )
 
-    mutual_info = np.empty((n, n), dtype=float)
+    mutual_info = np.empty((m, n), dtype=float)
 
     for i, r in zip(slices, views):
         mutual_info[:, i] = r
@@ -170,22 +171,24 @@ def _entropy_slice(x, bins, logtype=np.log):
 
 def _mi_slice(x, y_slicer, bins, y=None, logtype=np.log):
 
-    if y is None:
-        y = x[:, y_slicer]
-    else:
-        y = y[:, y_slicer]
+    with np.errstate(divide='ignore', invalid='ignore'):
 
-    n1, n2 = x.shape[1], y.shape[1]
+        if y is None:
+            y = x[:, y_slicer]
+        else:
+            y = y[:, y_slicer]
 
-    mutual_info = np.empty((n1, n2), dtype=float)
-    for i, j in itertools.product(range(n1), range(n2)):
-        mutual_info[i, j] = _calc_mi(
-            _make_table(
-                x[:, i],
-                y[:, j],
-                bins
-            ),
-            logtype=logtype
-        )
+        n1, n2 = x.shape[1], y.shape[1]
 
-    return mutual_info
+        mutual_info = np.empty((n1, n2), dtype=float)
+        for i, j in itertools.product(range(n1), range(n2)):
+            mutual_info[i, j] = _calc_mi(
+                _make_table(
+                    x[:, i],
+                    y[:, j],
+                    bins
+                ),
+                logtype=logtype
+            )
+
+        return mutual_info

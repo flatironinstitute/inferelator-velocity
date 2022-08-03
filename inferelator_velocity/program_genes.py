@@ -10,7 +10,9 @@ from inferelator.regression.mi import _make_array_discrete
 def assign_genes_to_programs(
     data,
     layer="X",
-    programs=None
+    programs=None,
+    default_program=None,
+    default_threshold=None
 ):
     """
     Find programs which have highest mutual information
@@ -37,6 +39,8 @@ def assign_genes_to_programs(
     else:
         programs = [programs]
 
+    programs = np.asarray(programs)
+
     d = copy_count_layer(data, layer)
     sc.pp.normalize_per_cell(d)
 
@@ -58,9 +62,22 @@ def assign_genes_to_programs(
     # Calculate mutual information between times and genes
 
     mi = mutual_information(
-        _make_array_discrete(d.X, N_BINS, axis=0),
+        _make_array_discrete(
+            d.X,
+            N_BINS,
+            axis=0
+        ),
         N_BINS,
-        y=_make_array_discrete(_times, N_BINS, axis=0)
+        y=_make_array_discrete(
+            _times,
+            N_BINS,
+            axis=0
+        )
     )
 
-    return programs[np.argmax(mi, axis=0)]
+    new_labels = programs[np.argmax(mi, axis=1)]
+
+    if default_program is not None:
+        new_labels[np.max(mi, axis=1) < default_threshold] = default_program
+
+    return new_labels

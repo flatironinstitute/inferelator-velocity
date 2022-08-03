@@ -159,7 +159,7 @@ def copy_count_layer(data, layer):
 
     if not pat.is_integer_dtype(lref.dtype):
         warnings.warn(
-            "program_select expects count data "
+            "Count data is expected, "
             f"but {lref.dtype} data has been passed. "
             "This data will be normalized and processed "
             "as count data. If it is not count data, "
