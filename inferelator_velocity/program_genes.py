@@ -1,6 +1,8 @@
 import numpy as np
 import scanpy as sc
 
+from inferelator_velocity.utils.misc import vprint
+
 from .utils import copy_count_layer
 from .utils.keys import OBS_TIME_KEY, N_BINS
 from .metrics import mutual_information
@@ -11,8 +13,11 @@ def assign_genes_to_programs(
     data,
     layer="X",
     programs=None,
+    return_mi=False,
     default_program=None,
-    default_threshold=None
+    default_threshold=None,
+    n_bins=N_BINS,
+    verbose=False
 ):
     """
     Find programs which have highest mutual information
@@ -59,18 +64,37 @@ def assign_genes_to_programs(
                 f"in .obs[{_tk}]"
             )
 
+    vprint(
+        f"Extracted times {_times.shape} "
+        f"for programs {', '.join(programs)}",
+        verbose=verbose
+    )
+
     # Calculate mutual information between times and genes
 
-    mi = mutual_information(
-        _make_array_discrete(
+    vprint(
+        f"Descretizing expression into {n_bins} bins",
+        verbose=verbose
+    )
+
+    _discrete_X = _make_array_discrete(
             d.X,
-            N_BINS,
+            n_bins,
             axis=0
-        ),
-        N_BINS,
+        )
+
+    vprint(
+        f"Calculating mutual information for {_discrete_X.shape[1]}"
+        f" genes x {len(programs)} programs",
+        verbose=verbose
+    )
+
+    mi = mutual_information(
+        _discrete_X,
+        n_bins,
         y=_make_array_discrete(
             _times,
-            N_BINS,
+            n_bins,
             axis=0
         )
     )
@@ -78,6 +102,15 @@ def assign_genes_to_programs(
     new_labels = programs[np.argmax(mi, axis=1)]
 
     if default_program is not None:
+        vprint(
+            "Setting genes with low mutual information "
+            f"( < {default_threshold}) to program {default_program}",
+            verbose=verbose
+        )
+
         new_labels[np.max(mi, axis=1) < default_threshold] = default_program
 
-    return new_labels
+    if return_mi:
+        return new_labels, mi
+    else:
+        return new_labels
