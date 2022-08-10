@@ -115,7 +115,7 @@ def assign_genes_to_programs(
     _labels, _counts = np.unique(new_labels, return_counts=True)
 
     vprint(
-        "Genes assigned to programs: "
+        "Genes assigned to programs: ",
         ", ".join(
             [f"Program {p}: {q} genes"
              for p, q in zip(_labels, _counts)]
