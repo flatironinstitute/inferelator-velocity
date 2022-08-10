@@ -112,13 +112,13 @@ def assign_genes_to_programs(
 
         new_labels[np.max(mi, axis=1) < default_threshold] = default_program
 
-    _label_counts = new_labels.value_counts()
+    _labels, _counts = np.unique(new_labels, return_counts=True)
 
     vprint(
         "Genes assigned to programs: "
         ", ".join(
             [f"Program {p}: {q} genes"
-             for p, q in zip(_label_counts.index, _label_counts.values)]
+             for p, q in zip(_labels, _counts)]
         ),
         verbose=verbose
     )
