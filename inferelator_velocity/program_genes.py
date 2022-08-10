@@ -1,5 +1,6 @@
 import numpy as np
 import scanpy as sc
+import scipy.sparse as sps
 
 from inferelator_velocity.utils.misc import vprint
 
@@ -17,6 +18,7 @@ def assign_genes_to_programs(
     default_program=None,
     default_threshold=None,
     n_bins=N_BINS,
+    use_sparse=True,
     verbose=False
 ):
     """
@@ -78,7 +80,7 @@ def assign_genes_to_programs(
     )
 
     _discrete_X = _make_array_discrete(
-            d.X,
+            d.X if use_sparse or not sps.issparse(d.X) else d.X.A,
             n_bins,
             axis=0
         )
