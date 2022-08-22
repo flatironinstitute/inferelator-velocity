@@ -12,8 +12,17 @@ DECAY_QUANT = (0.0, 0.05)
 ALPHA_QUANT = 0.975
 
 
-def calc_decay_sliding_windows(expression_data, velocity_data, time_data, n_windows=None, centers=None, width=None,
-                               include_alpha=True, bootstrap_estimates=False, **kwargs):
+def calc_decay_sliding_windows(
+    expression_data,
+    velocity_data,
+    time_data,
+    n_windows=None,
+    centers=None,
+    width=None,
+    include_alpha=True,
+    bootstrap_estimates=False,
+    **kwargs
+):
     """
     Calculate decay constants in a sliding window across a time axis
 
@@ -70,9 +79,16 @@ def calc_decay_sliding_windows(expression_data, velocity_data, time_data, n_wind
     return [x[0] for x in results], [x[1] for x in results], [x[2] for x in results], centers
 
 
-def calc_decay_bootstraps(expression_data, velocity_data, n_bootstraps=15, bootstrap_ratio=1.0,
-                          random_seed=8675309, lstatus=True, confidence_interval = 0.95,
-                          **kwargs):
+def calc_decay_bootstraps(
+    expression_data,
+    velocity_data,
+    n_bootstraps=15,
+    bootstrap_ratio=1.0,
+    random_seed=8675309,
+    lstatus=True,
+    confidence_interval = 0.95,
+    **kwargs
+):
     """
     Estimate decay constant lambda for dX/dt = -lambda X + alpha and calculate
     confidence intervals by bootstrapping.
@@ -120,9 +136,14 @@ def calc_decay_bootstraps(expression_data, velocity_data, n_bootstraps=15, boots
     return np.nanmean(decays, axis=0), ci, alphas
 
 
-def calc_decay(expression_data, velocity_data, include_alpha=True,
-               decay_quantiles=DECAY_QUANT, alpha_quantile=ALPHA_QUANT,
-               lstatus=True):
+def calc_decay(
+    expression_data,
+    velocity_data,
+    include_alpha=True,
+    decay_quantiles=DECAY_QUANT,
+    alpha_quantile=ALPHA_QUANT,
+    lstatus=True
+):
     """
     Estimate decay constant lambda for dX/dt = -lambda X + alpha
 
