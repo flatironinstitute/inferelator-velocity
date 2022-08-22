@@ -1,4 +1,6 @@
 # inferelator-velocity
+
+[![PyPI version](https://badge.fury.io/py/inferelator-velocity.svg)](https://badge.fury.io/py/inferelator-velocity)
 [![CI](https://github.com/flatironinstitute/inferelator-velocity/actions/workflows/python-package.yml/badge.svg)](https://github.com/flatironinstitute/inferelator-velocity/actions/workflows/python-package.yml/)
 
 This is a package that calculates dynamic (time-dependent) latent parameters from 
