@@ -27,7 +27,6 @@ jobs:
         python -m pip install -r requirements-test.txt
     - name: Test with pytest & coverage
       run: |
-        python -m coverage run -m pytest
-        python -m coverage xml
+        python -m pytest --cov inferelator_velocity
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v3
