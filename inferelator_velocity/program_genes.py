@@ -12,6 +12,7 @@ from .metrics import mutual_information, make_array_discrete
 def assign_genes_to_programs(
     data,
     layer="X",
+    normalize=True,
     programs=None,
     use_existing_programs=None,
     return_mi=False,
@@ -29,10 +30,14 @@ def assign_genes_to_programs(
     :type data: ad.AnnData
     :param layer: Layer containing count data, defaults to "X"
     :type layer: str, optional
+    :param normalize: Normalize per cell and log, defaults to True
+    :type normalize: bool
     :param programs: Program IDs to calculate times for, defaults to None
     :type programs: tuple, optional
-    :param use_existing_programs: Program IDs to take from original calculation,
-        defaults to taking all programs (only replacing -1)
+    :param use_existing_programs: Program IDs to take from original
+        calculation, when None will defaults to taking all programs (only
+        replacing -1), when False will replace all programs with,
+        defaults to None
     :type use_existing_programs: list, None
     :param return_mi: Return Mutual Information matrix
     :type return_mi: bool
@@ -67,7 +72,10 @@ def assign_genes_to_programs(
     programs = np.asarray(programs)
 
     d = copy_count_layer(data, layer)
-    sc.pp.normalize_per_cell(d)
+
+    if normalize:
+        sc.pp.normalize_per_cell(d)
+        sc.pp.log1p(d)
 
     _times = np.zeros((d.shape[0], len(programs)))
 

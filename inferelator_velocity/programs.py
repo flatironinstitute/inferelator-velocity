@@ -21,6 +21,7 @@ def program_select(
     n_programs=2,
     n_comps=None,
     layer="X",
+    normalize=False,
     mcv_loss_arr=None,
     n_jobs=-1,
     verbose=False,
@@ -43,6 +44,8 @@ def program_select(
     :type n_comps: int, optional
     :param layer: Data layer to use, defaults to "X"
     :type layer: str, optional
+    :param normalize: Normalize per cell and log, defaults to True
+    :type normalize: bool
     :param mcv_loss_arr: An array of molecular crossvalidation
         loss values [n x n_pcs],
         will be calculated if not provided,
@@ -88,8 +91,9 @@ def program_select(
 
     #### PREPROCESSING / NORMALIZATION ####
 
-    sc.pp.normalize_per_cell(d)
-    sc.pp.log1p(d)
+    if normalize:
+        sc.pp.normalize_per_cell(d)
+        sc.pp.log1p(d)
 
     if filter_to_hvg:
         sc.pp.highly_variable_genes(d, max_mean=np.inf, min_disp=0.01)

@@ -6,12 +6,13 @@ import anndata as ad
 
 from inferelator_velocity.programs import information_distance, _make_array_discrete, program_select
 from inferelator_velocity.metrics.information import mutual_information, _shannon_entropy
+from inferelator_velocity.program_genes import assign_genes_to_programs
 
 N = 1000
 BINS = 10
 
-EXPRESSION = np.random.default_rng(222222).random((N, 6))
-EXPRESSION[:, 0] = (100 * EXPRESSION[:, 0]).astype(int)
+EXPRESSION = np.zeros((N, 6), dtype=int)
+EXPRESSION[:, 0] = (100 * np.random.default_rng(222222).random(N)).astype(int)
 EXPRESSION[:, 1] = EXPRESSION[:, 0] * 1.75 - 0.5
 EXPRESSION[:, 2] = EXPRESSION[:, 0] ** 2
 EXPRESSION[:, 3] = 0
@@ -33,9 +34,11 @@ ADATA_UNS_PROGRAM_KEYS = [
     'molecular_cv_loss'
 ]
 
-PROGRAMS = ['1', '1', '0', '-1', '0', '0']
-PROGRAMS_EUCLID = ['0', '0', '0', '-1', '1', '1']
+PROGRAMS = ['0', '0', '0', '-1', '1', '1']
+PROGRAMS_ASSIGNED = ['0', '0', '0', '0', '1', '1']
 
+TIMES_0 = EXPRESSION[:, 0] / 100
+TIMES_1 = np.arange(N)
 
 class TestProgramMetrics(unittest.TestCase):
 
@@ -101,7 +104,7 @@ class TestProgram(unittest.TestCase):
 
         adata = EXPRESSION_ADATA.copy()
 
-        program_select(adata, verbose=True, filter_to_hvg=False)
+        program_select(adata, verbose=True, filter_to_hvg=False, normalize=False)
 
         for k in ADATA_UNS_PROGRAM_KEYS:
             self.assertIn(k, adata.uns['programs'].keys())
@@ -115,9 +118,36 @@ class TestProgram(unittest.TestCase):
 
         adata = EXPRESSION_ADATA.copy()
 
-        program_select(adata, verbose=True, filter_to_hvg=False, metric='euclidean')
+        program_select(adata, verbose=True, filter_to_hvg=False, normalize=False, metric='euclidean')
 
         self.assertListEqual(
-            PROGRAMS_EUCLID,
+            PROGRAMS,
             adata.var['program'].tolist()
         )
+
+class TestAssignGenesBasedOnTime(unittest.TestCase):
+
+    def test_assign_programs(self):
+
+        adata = EXPRESSION_ADATA.copy()
+
+        program_select(adata, filter_to_hvg=False)
+        adata.obs['program_0_time'] = TIMES_0
+        adata.obs['program_1_time'] = TIMES_1
+
+        new_program_labels = assign_genes_to_programs(
+            adata,
+            normalize=False
+        )
+
+        self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)
+
+        new_program_labels, mi_mi = assign_genes_to_programs(
+            adata,
+            use_existing_programs=False,
+            verbose=True,
+            return_mi=True,
+            normalize=False
+        )
+
+        self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)
