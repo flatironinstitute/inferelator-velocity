@@ -6,14 +6,14 @@ from inferelator_velocity.utils.misc import vprint
 
 from .utils import copy_count_layer
 from .utils.keys import OBS_TIME_KEY, N_BINS
-from .metrics import mutual_information
-from inferelator.regression.mi import _make_array_discrete
+from .metrics import mutual_information, make_array_discrete
 
 
 def assign_genes_to_programs(
     data,
     layer="X",
     programs=None,
+    use_existing_programs=None,
     return_mi=False,
     default_program=None,
     default_threshold=None,
@@ -22,8 +22,8 @@ def assign_genes_to_programs(
     verbose=False
 ):
     """
-    Find programs which have highest mutual information
-    with every gene
+    Assign genes to programs based on the maximum mutual information
+    between time and gene expression
 
     :param data: AnnData object which `ifv.program_select()` has been called on
     :type data: ad.AnnData
@@ -31,8 +31,26 @@ def assign_genes_to_programs(
     :type layer: str, optional
     :param programs: Program IDs to calculate times for, defaults to None
     :type programs: tuple, optional
-    :return: AnnData object with `program_{id}_distances` obps key
-    :rtype: ad.AnnData
+    :param use_existing_programs: Program IDs to take from original calculation,
+        defaults to taking all programs (only replacing -1)
+    :type use_existing_programs: list, None
+    :param return_mi: Return Mutual Information matrix
+    :type return_mi: bool
+    :param default_program: If set, use this program as a default for genes with
+        low mutual information to any times
+    :type default_program: str, None
+    :param default_threshold: If set, use this as a threshold for mutual information
+        to assign genes to default program
+    :type default_threshold: numeric
+    :param n_bins: Number of bins for descretization of continuous data
+    :type n_bins: int,
+    :param use_sparse: Use sparse data structures if provided, otherwise
+        convert to dense
+    :type use_sparse: bool,
+    :param verbose: Verbose
+    :type verbose: bool
+    :return: New program labels
+    :rtype: np.ndarray
     """
 
     if programs is None:
@@ -79,7 +97,7 @@ def assign_genes_to_programs(
         verbose=verbose
     )
 
-    _discrete_X = _make_array_discrete(
+    _discrete_X = make_array_discrete(
             d.X if use_sparse or not sps.issparse(d.X) else d.X.A,
             n_bins,
             axis=0
@@ -94,7 +112,7 @@ def assign_genes_to_programs(
     mi = mutual_information(
         _discrete_X,
         n_bins,
-        y=_make_array_discrete(
+        y=make_array_discrete(
             _times,
             n_bins,
             axis=0
@@ -113,6 +131,25 @@ def assign_genes_to_programs(
         new_labels[np.max(mi, axis=1) < default_threshold] = default_program
 
     _labels, _counts = np.unique(new_labels, return_counts=True)
+
+
+    old_labels = data.var['program']
+
+    if use_existing_programs is None:
+        _has_old = old_labels != "-1"
+        new_labels[_has_old] = old_labels[_has_old]
+
+    elif use_existing_programs is not False:
+        _has_old = old_labels.isin(use_existing_programs)
+        new_labels[_has_old] = old_labels[_has_old]
+
+    else:
+        _has_old = np.zeros_like(old_labels, dtype=bool)
+
+    vprint(
+        f"{np.sum(_has_old)} existing program labels kept",
+        verbose=verbose
+    )
 
     vprint(
         "Genes assigned to programs: ",

@@ -6,8 +6,13 @@ from joblib import Parallel, delayed, effective_n_jobs
 from inferelator.regression.mi import _make_table, _calc_mi
 
 
-def information_distance(discrete_array, bins, n_jobs=-1, logtype=np.log,
-                         return_information=False):
+def information_distance(
+    discrete_array,
+    bins,
+    n_jobs=-1,
+    logtype=np.log,
+    return_information=False
+):
     """
     Calculate shannon information distance
     D(X, X) = 1 - MI(X, X) / H(X, X)
@@ -119,7 +124,12 @@ def mutual_information(
     return mutual_info
 
 
-def _shannon_entropy(discrete_array, bins, n_jobs=-1, logtype=np.log):
+def _shannon_entropy(
+    discrete_array,
+    bins,
+    n_jobs=-1,
+    logtype=np.log
+):
     """
     Calculate shannon entropy for each feature in a discrete array
 
@@ -160,7 +170,11 @@ def _shannon_entropy(discrete_array, bins, n_jobs=-1, logtype=np.log):
     return entropy
 
 
-def _entropy_slice(x, bins, logtype=np.log):
+def _entropy_slice(
+    x,
+    bins,
+    logtype=np.log
+):
 
     def _entropy(vec):
         px = np.bincount(vec, minlength=bins) / vec.size
@@ -169,7 +183,13 @@ def _entropy_slice(x, bins, logtype=np.log):
     return np.apply_along_axis(_entropy, 0, x)
 
 
-def _mi_slice(x, y_slicer, bins, y=None, logtype=np.log):
+def _mi_slice(
+    x,
+    y_slicer,
+    bins,
+    y=None,
+    logtype=np.log
+):
 
     with np.errstate(divide='ignore', invalid='ignore'):
 
