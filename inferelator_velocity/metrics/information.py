@@ -40,12 +40,20 @@ def information_distance(
     """
 
     # Calculate MI(X, X)
-    mi_xx = mutual_information(discrete_array, bins, logtype=logtype,
-                               n_jobs=n_jobs)
+    mi_xx = mutual_information(
+        discrete_array,
+        bins,
+        logtype=logtype,
+        n_jobs=n_jobs
+    )
 
     # Calculate H(X)
-    h_x = _shannon_entropy(discrete_array, bins, logtype=logtype,
-                           n_jobs=n_jobs)
+    h_x = _shannon_entropy(
+        discrete_array,
+        bins,
+        logtype=logtype,
+        n_jobs=n_jobs
+    )
 
     # Calulate distance as 1 - MI(X, X) / H(X, X)
     # Where H(X, X) = H(X) + H(X) - MI(X, X)

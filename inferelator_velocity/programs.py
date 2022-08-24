@@ -1,5 +1,6 @@
 import numpy as np
 import anndata as ad
+from scipy import sparse, stats
 
 import scanpy as sc
 from scanpy.neighbors import compute_neighbors_umap, _compute_connectivities_umap
@@ -24,7 +25,8 @@ def program_select(
     n_jobs=-1,
     verbose=False,
     filter_to_hvg=True,
-    metric='information'
+    metric='information',
+    random_state=50,
 ):
     """
     Find a specific number of gene programs based on information distance between genes.
@@ -60,11 +62,13 @@ def program_select(
         by sklearn.metrics.pairwise_distances.
         Defaults to 'information'.
     :type metric: str, optional
+    :param random_state: Random seed for leiden, defaults to 50
+    :type random_state: int
     :return: Data object with new attributes:
         .obsm['program_PCs']: Principal component for each program
         .var['leiden']: Leiden cluster ID
         .var['program']: Program ID
-        .uns['MI_program']: {
+        .uns['programs']: {
             'metric': Metric name,
             'leiden_correlation': Absolute value of spearman rho
                 between PC1 of each leiden cluster,
@@ -91,13 +95,17 @@ def program_select(
         sc.pp.highly_variable_genes(d, max_mean=np.inf, min_disp=0.01)
         d._inplace_subset_var(d.var['highly_variable'].values)
 
-        vprint(f"Normalized and kept {d.shape[1]} highly variable genes",
-               verbose=verbose)
+        vprint(
+            f"Normalized and kept {d.shape[1]} highly variable genes",
+            verbose=verbose
+        )
     else:
         sc.pp.filter_genes(d, min_cells=10)
 
-        vprint(f"Normalized and kept {d.shape[1]} expressed genes",
-               verbose=verbose)
+        vprint(
+            f"Normalized and kept {d.shape[1]} expressed genes",
+            verbose=verbose
+        )
 
 
     #### PCA / COMPONENT SELECTION BY MOLECULAR CROSSVALIDATION ####
@@ -124,17 +132,21 @@ def program_select(
 
     #### CALCULATING MUTUAL INFORMATION & GENE CLUSTERING ####
 
-    vprint(f"Calculating information distance for {pca_expr.shape} array",
-           verbose=verbose)
-
     if metric != 'information':
-        vprint(f"Calculating {metric} distance for {pca_expr.shape} array",
-               verbose=verbose)
+        vprint(
+            f"Calculating {metric} distance for {pca_expr.shape} array",
+            verbose=verbose
+        )
 
         dists = pairwise_distances(pca_expr.T, metric=metric)
         mutual_info = np.array([])
 
     else:
+        vprint(
+            f"Calculating information distance for {pca_expr.shape} array",
+            verbose=verbose
+        )
+
         dists, mutual_info = information_distance(
             _make_array_discrete(pca_expr, N_BINS, axis=0),
             N_BINS,
@@ -143,21 +155,26 @@ def program_select(
             return_information=True
         )
 
-    vprint(f"Calculating k-NN and Leiden for {dists.shape} distance array",
-           verbose=verbose)
+    vprint(
+        f"Calculating k-NN and Leiden for {dists.shape} distance array",
+        verbose=verbose
+    )
 
-    ### k-NN & LEIDEN - 15 <= N_GENES / 100 <= 100 neighbors
+    ### k-NN & LEIDEN - 2 <= N_GENES / 100 <= 100 neighbors
     d.var['leiden'] = _leiden_cluster(
         dists,
-        min(100, max(int(dists.shape[0] / 100), 15)),
-        leiden_kws={'random_state': 50}
+        min(100, max(int(dists.shape[0] / 100), 2)),
+        leiden_kws={'random_state': random_state}
     )
 
     _n_l_clusts = d.var['leiden'].nunique()
 
-    vprint(f"Found {_n_l_clusts} unique gene clusters",
-           verbose=verbose)
+    vprint(
+        f"Found {_n_l_clusts} unique gene clusters",
+        verbose=verbose
+    )
 
+    # Get the first PC for each cluster of genes
     _cluster_pc1 = np.zeros((d.shape[0], _n_l_clusts), dtype=float)
     for i in range(_n_l_clusts):
         _cluster_pc1[:, i] = _get_pcs(
@@ -167,17 +184,30 @@ def program_select(
 
     #### SECOND ROUND OF CLUSTERING TO MERGE GENE CLUSTERS INTO PROGRAMS ####
 
+    # Spearman rho for the first PC for each cluster
     _rho_pc1 = np.abs(spearmanr(_cluster_pc1))[0]
 
-    vprint(f"Merging {_n_l_clusts} gene clusters into {n_programs} programs",
-           verbose=verbose)
+    if _n_l_clusts > n_programs:
+        vprint(
+            f"Merging {_n_l_clusts} gene clusters into {n_programs} programs",
+            verbose=verbose
+        )
 
-    # Merge clusters based on correlation distance (1 - abs(spearman rho))
-    clust_2 = AgglomerativeClustering(n_clusters=n_programs,
-                                      affinity='precomputed',
-                                      linkage='complete').fit_predict(1 - _rho_pc1)
+        # Merge clusters based on correlation distance (1 - abs(spearman rho))
+        clust_2 = AgglomerativeClustering(
+            n_clusters=n_programs,
+            affinity='precomputed',
+            linkage='complete'
+        ).fit_predict(1 - _rho_pc1)
 
-    clust_map = {str(k): str(clust_2[k]) for k in range(_n_l_clusts)}
+    else:
+        clust_2 = {k: str(k) for k in range(_n_l_clusts)}
+
+    # Generate a map that links cluters to programs
+    clust_map = {
+        str(k): str(clust_2[k])
+        for k in range(_n_l_clusts)
+    }
     clust_map[str(-1)] = str(-1)
 
     d.var['program'] = d.var['leiden'].astype(str).map(clust_map)
@@ -208,8 +238,14 @@ def program_select(
     return data
 
 
-def program_pcs(data, program_id_vector, program_id_levels=None,
-                skip_program_ids=(str(-1)), normalize=True, n_pcs=1):
+def program_pcs(
+    data,
+    program_id_vector,
+    program_id_levels=None,
+    skip_program_ids=(str(-1)),
+    normalize=True,
+    n_pcs=1
+):
     """
     Calculate principal components for a set of expression programs
 
@@ -258,7 +294,12 @@ def program_pcs(data, program_id_vector, program_id_levels=None,
         return p_pcs, vr_pcs, use_ids
 
 
-def _get_pcs(data, n_pcs=1, normalize=True, return_var_explained=True):
+def _get_pcs(
+    data,
+    n_pcs=1,
+    normalize=True,
+    return_var_explained=True
+):
     """
     Get the values for PC1
 
@@ -283,12 +324,18 @@ def _get_pcs(data, n_pcs=1, normalize=True, return_var_explained=True):
     else:
         data = data.astype(float)
 
-    _pca_X, _, _pca_var_ratio, _ = sc.pp.pca(
-        data,
-        n_comps=n_pcs,
-        zero_center=True,
-        return_info=True
-    )
+    # Use single feature or pass to PCA
+    if data.shape[1] == 1:
+        _pca_X = stats.zscore(data)
+        _pca_var_ratio = np.array([1.])
+
+    else:
+        _pca_X, _, _pca_var_ratio, _ = sc.pp.pca(
+            data,
+            n_comps=n_pcs,
+            zero_center=True,
+            return_info=True
+        )
 
     if return_var_explained:
         return _pca_X[:, 0:n_pcs], _pca_var_ratio[0:n_pcs]
@@ -296,7 +343,12 @@ def _get_pcs(data, n_pcs=1, normalize=True, return_var_explained=True):
         return _pca_X[:, 0:n_pcs]
 
 
-def _leiden_cluster(dist_array, n_neighbors, random_state=100, leiden_kws=None):
+def _leiden_cluster(
+    dist_array,
+    n_neighbors,
+    random_state=100,
+    leiden_kws=None
+):
 
     # Calculate neighbors using scanpy internals
     # (Needed as there's no way to provide a distance matrix)
@@ -310,6 +362,9 @@ def _leiden_cluster(dist_array, n_neighbors, random_state=100, leiden_kws=None):
     knn_dist, knn_connect = _compute_connectivities_umap(
         knn_i, knn_dist, dist_array.shape[0], n_neighbors
     )
+
+    if knn_connect.size < int(1e6) and sparse.issparse(knn_connect):
+        knn_connect = knn_connect.A
 
     leiden_kws = {} if leiden_kws is None else leiden_kws
     leiden_kws['adjacency'] = knn_connect
