@@ -111,7 +111,7 @@ class TestProgram(unittest.TestCase):
 
         self.assertListEqual(
             PROGRAMS,
-            adata.var['program'].tolist()
+            adata.var['programs'].tolist()
         )
 
     def test_find_prog_euclid(self):
@@ -122,7 +122,7 @@ class TestProgram(unittest.TestCase):
 
         self.assertListEqual(
             PROGRAMS,
-            adata.var['program'].tolist()
+            adata.var['programs'].tolist()
         )
 
 class TestAssignGenesBasedOnTime(unittest.TestCase):

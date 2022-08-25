@@ -5,7 +5,7 @@ import scipy.sparse as sps
 from inferelator_velocity.utils.misc import vprint
 
 from .utils import copy_count_layer
-from .utils.keys import OBS_TIME_KEY, N_BINS
+from .utils.keys import OBS_TIME_KEY, N_BINS, PROGRAM_KEY
 from .metrics import mutual_information, make_array_discrete
 
 
@@ -61,7 +61,7 @@ def assign_genes_to_programs(
     if programs is None:
         programs = [
             p
-            for p in data.uns['programs']['program_names']
+            for p in data.uns[PROGRAM_KEY]['program_names']
             if p != '-1'
         ]
     elif type(programs) == list or type(programs) == tuple or isinstance(programs, np.ndarray):
@@ -141,7 +141,7 @@ def assign_genes_to_programs(
     _labels, _counts = np.unique(new_labels, return_counts=True)
 
 
-    old_labels = data.var['program']
+    old_labels = data.var[PROGRAM_KEY]
 
     if use_existing_programs is None:
         _has_old = old_labels != "-1"

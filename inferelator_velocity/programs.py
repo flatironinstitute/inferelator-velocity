@@ -13,7 +13,7 @@ from inferelator.regression.mi import _make_array_discrete
 from .utils.mcv import mcv_pcs
 from .utils import vprint, copy_count_layer
 from .metrics import information_distance
-from .utils.keys import N_BINS
+from .utils.keys import N_BINS, PROGRAM_KEY
 
 
 def program_select(
@@ -214,17 +214,17 @@ def program_select(
     }
     clust_map[str(-1)] = str(-1)
 
-    d.var['program'] = d.var['leiden'].astype(str).map(clust_map)
+    d.var[PROGRAM_KEY] = d.var['leiden'].astype(str).map(clust_map)
 
     #### LOAD FINAL DATA INTO INITIAL DATA OBJECT AND RETURN IT ####
 
     data.var['leiden'] = str(-1)
     data.var.loc[d.var_names, 'leiden'] = d.var['leiden'].astype(str)
-    data.var['program'] = data.var['leiden'].map(clust_map)
+    data.var[PROGRAM_KEY] = data.var['leiden'].map(clust_map)
 
     #### ADD RESULTS OBJECT TO UNS ####
 
-    data.uns['programs'] = {
+    data.uns[PROGRAM_KEY] = {
         'metric': metric,
         'leiden_correlation': _rho_pc1,
         'metric_genes': d.var_names.values,
@@ -232,12 +232,12 @@ def program_select(
         'cluster_program_map': clust_map,
         'n_comps': n_comps,
         'n_programs': n_programs,
-        'program_names': np.unique(data.var['program']),
+        'program_names': np.unique(data.var[PROGRAM_KEY]),
         'molecular_cv_loss': mcv_loss_arr
     }
 
     if metric == 'information':
-        data.uns['programs']['mutual_information'] = mutual_info
+        data.uns[PROGRAM_KEY]['mutual_information'] = mutual_info
 
     return data
 

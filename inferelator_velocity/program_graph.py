@@ -2,7 +2,7 @@ import numpy as np
 
 from .utils.noise2self import knn_noise2self
 from .utils import vprint
-from .utils.keys import OBSP_DIST_KEY, UNS_GRAPH_SUBKEY
+from .utils.keys import OBSP_DIST_KEY, UNS_GRAPH_SUBKEY, PROGRAM_KEY
 
 
 def global_graph(
@@ -14,8 +14,10 @@ def global_graph(
     verbose=False
 ):
 
-    vprint(f"Embedding graph from {data.shape} data",
-           verbose=verbose)
+    vprint(
+        f"Embedding graph from {data.shape} data",
+        verbose=verbose
+    )
 
     lref = data.X if layer == "X" else data.layers[layer]
 
@@ -27,10 +29,12 @@ def global_graph(
         use_sparse=use_sparse
     )
 
-    vprint(f"Embedded optimal graph "
-           f"containing {np.min(nk)} - {np.max(nk)} neighbors "
-           f"from {npc} PCs",
-           verbose=verbose)
+    vprint(
+        f"Embedded optimal graph "
+        f"containing {np.min(nk)} - {np.max(nk)} neighbors "
+        f"from {npc} PCs",
+        verbose=verbose
+    )
 
     if 'noise2self' not in data.uns:
         data.uns['noise2self'] = {}
@@ -79,7 +83,7 @@ def program_graphs(
     if programs is None:
         programs = [
             p
-            for p in data.uns['programs']['program_names']
+            for p in data.uns[PROGRAM_KEY]['program_names']
             if p != '-1'
         ]
     elif type(programs) == list or type(programs) == tuple or isinstance(programs, np.ndarray):
@@ -93,9 +97,10 @@ def program_graphs(
 
         _var_idx = data.var[program_var_key] == prog
 
-        vprint(f"Embedding graph for {prog} "
-               f"containing {np.sum(_var_idx)} genes",
-               verbose=verbose)
+        vprint(
+            f"Embedding graph for {prog} "
+            f"containing {np.sum(_var_idx)} genes",
+            verbose=verbose)
 
         lref = data.X if layer == "X" else data.layers[layer]
 
@@ -107,10 +112,12 @@ def program_graphs(
             use_sparse=use_sparse
         )
 
-        vprint(f"Embedded optimal graph for {prog} "
-               f"containing {np.min(nk)} - {np.max(nk)} neighbors "
-               f"from {npc} PCs",
-               verbose=verbose)
+        vprint(
+            f"Embedded optimal graph for {prog} "
+            f"containing {np.min(nk)} - {np.max(nk)} neighbors "
+            f"from {npc} PCs",
+            verbose=verbose
+        )
 
         if 'programs' not in data.uns:
             data.uns['programs'] = {UNS_GRAPH_SUBKEY.format(prog=prog): npc}
