@@ -140,7 +140,6 @@ def assign_genes_to_programs(
 
     _labels, _counts = np.unique(new_labels, return_counts=True)
 
-
     old_labels = data.var[PROGRAM_KEY]
 
     if use_existing_programs is None:
@@ -154,8 +153,17 @@ def assign_genes_to_programs(
     else:
         _has_old = np.zeros_like(old_labels, dtype=bool)
 
+    __old_labels, _old_counts = np.unique(
+        new_labels[_has_old],
+        return_counts=True
+    )
+
     vprint(
         f"{np.sum(_has_old)} existing program labels kept",
+        ", ".join(
+            [f"Program {p}: {q} genes"
+             for p, q in zip(__old_labels, _old_counts)]
+        ),
         verbose=verbose
     )
 
