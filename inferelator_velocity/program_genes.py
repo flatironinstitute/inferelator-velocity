@@ -98,23 +98,12 @@ def assign_genes_to_programs(
         verbose=verbose
     )
 
-    # Calculate mutual information between times and genes
-
-    vprint(
-        f"Descretizing expression into {n_bins} bins",
-        verbose=verbose
-    )
-
-    _discrete_X = make_array_discrete(
-            d.X if use_sparse or not sps.issparse(d.X) else d.X.A,
-            n_bins,
-            axis=0
-        )
-
     # Check for non-finite times
     # Remove any observations which have NaN or Inf times for any program
-    _time_nan = np.sum(~np.isfinite(_times), axis=1)
+    _time_nan = np.sum(~np.isfinite(_times), axis=1).astype(bool)
     _n_time_nan = np.sum(_time_nan > 0)
+
+    d = d.X if use_sparse or not sps.issparse(d.X) else d.X.A
 
     if _n_time_nan > 0:
 
@@ -124,8 +113,23 @@ def assign_genes_to_programs(
             verbose=verbose
         )
 
-        _discrete_X = _discrete_X[~_time_nan, :]
+        d = d[~_time_nan, :]
         _times = _times[~_time_nan]
+
+    # Calculate mutual information between times and genes
+
+    vprint(
+        f"Descretizing expression into {n_bins} bins",
+        verbose=verbose
+    )
+
+    _discrete_X = make_array_discrete(
+            d,
+            n_bins,
+            axis=0
+    )
+
+    del d
 
     vprint(
         f"Calculating mutual information for {_discrete_X.shape[1]}"

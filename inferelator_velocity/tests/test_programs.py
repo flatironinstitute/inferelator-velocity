@@ -38,7 +38,7 @@ PROGRAMS = ['0', '0', '0', '-1', '1', '1']
 PROGRAMS_ASSIGNED = ['0', '0', '0', '0', '1', '1']
 
 TIMES_0 = EXPRESSION[:, 0] / 100
-TIMES_1 = np.arange(N)
+TIMES_1 = np.arange(N).astype(float)
 
 class TestProgramMetrics(unittest.TestCase):
 
@@ -138,6 +138,36 @@ class TestAssignGenesBasedOnTime(unittest.TestCase):
         new_program_labels = assign_genes_to_programs(
             adata,
             normalize=False
+        )
+
+        self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)
+
+        new_program_labels, mi_mi = assign_genes_to_programs(
+            adata,
+            use_existing_programs=False,
+            verbose=True,
+            return_mi=True,
+            normalize=False
+        )
+
+        self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)
+
+    def test_assign_programs_nan(self):
+
+        adata = EXPRESSION_ADATA.copy()
+        t0 = TIMES_0.copy().astype(float)
+        t0[1] = np.nan
+        t1 = TIMES_1.copy().astype(float)
+        t1[0] = np.nan
+
+        program_select(adata, filter_to_hvg=False)
+        adata.obs['program_0_time'] = t0
+        adata.obs['program_1_time'] = t1
+
+        new_program_labels = assign_genes_to_programs(
+            adata,
+            normalize=False,
+            verbose=True
         )
 
         self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)
