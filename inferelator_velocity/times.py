@@ -7,16 +7,17 @@ from .utils.graph import get_shortest_paths, get_total_path
 from .utils.math import scalar_projection, get_centroids
 from .utils.mcv import mcv_pcs
 from .utils import vprint, order_dict_to_lists
-from .utils.keys import OBS_TIME_KEY, OBSM_PCA_KEY
+from .utils.keys import OBS_TIME_KEY, OBSM_PCA_KEY, PROGRAM_KEY
 
 from scipy.sparse.csgraph import shortest_path
 
 
-def program_times(data,
+def program_times(
+    data,
     cluster_obs_key_dict,
     cluster_order_dict,
     layer="X",
-    program_var_key='program',
+    program_var_key=PROGRAM_KEY,
     programs=('0', '1'),
     n_comps=None,
     verbose=False
@@ -65,9 +66,11 @@ def program_times(data,
 
         _var_idx = data.var[program_var_key] == prog
 
-        vprint(f"Assigning time values for program {prog} "
-               f"containing {np.sum(_var_idx)} genes",
-               verbose=verbose)
+        vprint(
+            f"Assigning time values for program {prog} "
+            f"containing {np.sum(_var_idx)} genes",
+            verbose=verbose
+        )
 
         _cluster_labels = data.obs[cluster_obs_key_dict[prog]].values
 
@@ -100,15 +103,16 @@ def program_times(data,
     return data
 
 
-def calculate_times(count_data,
-                    cluster_vector,
-                    cluster_order_dict,
-                    n_neighbors=10,
-                    n_comps=None,
-                    graph_method="D",
-                    return_components=False,
-                    verbose=False
-                    ):
+def calculate_times(
+    count_data,
+    cluster_vector,
+    cluster_order_dict,
+    n_neighbors=10,
+    n_comps=None,
+    graph_method="D",
+    return_components=False,
+    verbose=False
+):
     """
     Calculate times for each cell based on count data and a known set of anchoring
     time points.
