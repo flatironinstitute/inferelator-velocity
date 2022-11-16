@@ -6,7 +6,7 @@ import warnings
 from .utils.graph import get_shortest_paths, get_total_path
 from .utils.math import scalar_projection, get_centroids
 from .utils.mcv import mcv_pcs
-from .utils import vprint, order_dict_to_lists
+from .utils import vprint, order_dict_to_lists, is_iterable_arg
 from .utils.keys import OBS_TIME_KEY, OBSM_PCA_KEY, PROGRAM_KEY
 
 from scipy.sparse.csgraph import shortest_path
@@ -27,25 +27,32 @@ def program_times(
 
     :param data: AnnData object which `ifv.program_select()` has been called on
     :type data: ad.AnnData
-    :param cluster_obs_key_dict: Dict, keyed by program ID, of cluster identifiers from
-        metadata (e.g. {'0': 'Time'}, etc)
+    :param cluster_obs_key_dict: Dict, keyed by program ID, of cluster
+        identifiers from metadata (e.g. {'0': 'Time'}, etc)
     :type cluster_obs_key_dict: dict
-    :param cluster_order_dict: Dict, keyed by program ID, of cluster centroid time and
-        order. For example:
+    :param cluster_order_dict: Dict, keyed by program ID, of cluster centroid
+        time and order. For example:
         {'PROGRAM_ID':
             {'CLUSTER_ID':
-                ('NEXT_CLUSTER_ID', time_at_first_centroid, time_at_next_centroid)
+                (
+                    'NEXT_CLUSTER_ID',
+                    time_at_first_centroid,
+                    time_at_next_centroid
+                )
             }
         }
     :type cluster_order_dict: dict[tuple]
     :param layer: Layer containing count data, defaults to "X"
     :type layer: str, optional
-    :param program_var_key: Key to find program IDs in var data, defaults to 'program'
+    :param program_var_key: Key to find program IDs in var data,
+        defaults to 'program'
     :type program_var_key: str, optional
-    :param programs: Program IDs to calculate times for, defaults to ('0', '1')
+    :param programs: Program IDs to calculate times for,
+        defaults to ('0', '1')
     :type programs: tuple, optional
-    :param n_comps: Dict, keyed by program ID, of number of components to use per program,
-        defaults to selecting with molecular crossvalidation
+    :param n_comps: Dict, keyed by program ID, of number of components
+        to use per program. If None, select number of components by
+        molecular crossvalidation. Defaults to None.
     :type n_comps: dict[int]
     :param verbose: Print detailed status, defaults to False
     :type verbose: bool, optional
@@ -54,7 +61,7 @@ def program_times(
     :rtype: ad.AnnData
     """
 
-    if type(programs) == list or type(programs) == tuple or isinstance(programs, np.ndarray):
+    if is_iterable_arg(programs):
         pass
     else:
         programs = [programs]
@@ -114,8 +121,8 @@ def calculate_times(
     verbose=False
 ):
     """
-    Calculate times for each cell based on count data and a known set of anchoring
-    time points.
+    Calculate times for each cell based on count data and a known set
+    of anchoring time points.
 
     :param count_data: Integer count data
     :type count_data: np.ndarray
@@ -127,8 +134,8 @@ def calculate_times(
             ('NEXT_CLUSTER_ID', time_at_first_centroid, time_at_next_centroid)
         }
     :type cluster_order_dict: dict
-    :param n_neighbors: Number of neighbors for shortest-path to centroid assignment,
-        defaults to 10
+    :param n_neighbors: Number of neighbors for shortest-path to
+        centroid assignment, defaults to 10
     :type n_neighbors: int, optional
     :param n_comps: Number of components to use for centroid assignment,
         defaults to None (selecting with molecular crossvalidation)
@@ -137,15 +144,15 @@ def calculate_times(
         scipy.sparse.csgraph.shortest_path,
         defaults to "D" (Dijkstra's algorithm)
     :type graph_method: str, optional
-    :param return_components: Return PCs and metadata if True, otherwise return only
-        a vector of times, defaults to False
+    :param return_components: Return PCs and metadata if True, otherwise
+        return only a vector of times, defaults to False
     :type return_components: bool, optional
     :param verbose: Print detailed status, defaults to False
     :type verbose: bool, optional
-    :raises ValueError: Raise ValueError if the cluster order keys and the values in the
-        cluster_vector are not compatible.
-    :return: An array of time values per cell. Also an array of PCs and a dict of metadata,
-        if return_components is True.
+    :raises ValueError: Raise ValueError if the cluster order keys and
+        the values in the cluster_vector are not compatible.
+    :return: An array of time values per cell. Also an array of PCs and
+        a dict of metadata, if return_components is True.
     :rtype: np.ndarray, np.ndarray (optional), dict (optional)
     """
 
@@ -156,30 +163,49 @@ def calculate_times(
         np.unique(cluster_vector))
     ):
         raise ValueError(
-            f"Mismatch between cluster_order_dict keys {list(cluster_order_dict.keys())} "
-            f"And cluster_vector values {np.unique(cluster_vector)}"
+            f"Mismatch between cluster_order_dict keys "
+            f"{list(cluster_order_dict.keys())} and "
+            f"cluster_vector values {np.unique(cluster_vector)}"
         )
 
     adata = ad.AnnData(count_data, dtype=float)
     sc.pp.normalize_per_cell(adata, min_counts=0)
     sc.pp.log1p(adata)
 
+    # If the number of components to use is not provided,
+    # Do molecular crossvalidation
     if n_comps is None:
-        n_comps = np.median(mcv_pcs(count_data, n=1), axis=0).argmin()
+        _mcv_error = mcv_pcs(count_data, n=1)
+        n_comps = np.median(_mcv_error, axis=0).argmin()
+    else:
+        _mcv_error = None
 
     sc.pp.pca(adata, n_comps=n_comps, zero_center=True)
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_comps)
 
-    vprint(f"Preprocessed expression count data {count_data.shape}",
-           verbose=verbose)
+    vprint(
+        f"Preprocessed expression count data {count_data.shape}",
+        verbose=verbose
+    )
 
-    centroids = {k: adata.obs_names.get_loc(adata.obs_names[cluster_vector == k][idx])
-                 for k, idx in get_centroids(adata.obsm['X_pca'], cluster_vector).items()}
+    # Find centroid points to each cluster
+    centroids = {
+        k: adata.obs_names.get_loc(
+            adata.obs_names[cluster_vector == k][idx]
+        )
+
+        for k, idx in get_centroids(
+            adata.obsm['X_pca'],
+            cluster_vector
+        ).items()
+    }
 
     centroid_indices = [centroids[k] for k in centroids.keys()]
 
-    vprint(f"Identified centroids for groups {', '.join(centroids.keys())}",
-           verbose=verbose)
+    vprint(
+        f"Identified centroids for groups {', '.join(centroids.keys())}",
+        verbose=verbose
+    )
 
     # Order the centroids and build an end-to-end path
     _total_path, _tp_centroids = get_total_path(
@@ -241,22 +267,29 @@ def calculate_times(
         group['centroids'].append((centroids[start], centroids[end]))
         group['path'].append(_total_path[max(0, _tp_centroids[start] - 1):_right_centroid])
 
+    # Only do verbose message math if needed
     if verbose:
-        vprint(f"Assigned times to {np.sum(~np.isnan(times))} cells "
-               f"[{np.nanmin(times):.3f} - {np.nanmax(times):.3f}]",
-               verbose=verbose)
+        vprint(
+            f"Assigned times to {np.sum(~np.isnan(times))} cells "
+            f"[{np.nanmin(times):.3f} - {np.nanmax(times):.3f}]",
+            verbose=verbose
+        )
 
+    # Assign result information to an .uns key
     adata.uns['pca']['centroids'] = centroids
     adata.uns['pca']['shortest_path'] = _total_path
     adata.uns['pca']['closest_path_assignment'] = group['index']
     adata.uns['pca']['assignment_names'] = group['names']
     adata.uns['pca']['assignment_centroids'] = group['centroids']
+    adata.uns['pca']['molecular_crossvalidation_mse'] = _mcv_error
 
     # PAD PATH WITH -1s AND CONVERT TO AN ARRAY FOR ANNDATA.WRITE() ####
     _path_max_len = max(map(len, group['path']))
-    group['path'] = np.array([[x[c] if c < len(x) else -1
-                               for c in range(_path_max_len)]
-                              for x in group['path']])
+    group['path'] = np.array(
+        [[x[c] if c < len(x) else -1
+         for c in range(_path_max_len)]
+         for x in group['path']]
+    )
 
     adata.uns['pca']['assignment_path'] = group['path']
 
