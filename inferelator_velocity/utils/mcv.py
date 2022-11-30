@@ -5,7 +5,14 @@ import scanpy as sc
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 
-def mcv_pcs(count_data, n=5, n_pcs=100, random_seed=800, p=0.5, metric='mse'):
+def mcv_pcs(
+    count_data,
+    n=5,
+    n_pcs=100,
+    random_seed=800,
+    p=0.5,
+    metric='mse'
+):
     """
     Calculate a loss metric based on molecular crossvalidation
 
@@ -82,10 +89,10 @@ def _normalize_for_pca(count_data, copy=True):
     """
     Depth normalize and log pseudocount
 
-    :param count_data: _description_
-    :type count_data: _type_
-    :return: _description_
-    :rtype: _type_
+    :param count_data: Integer data
+    :type count_data: np.ndarray, sp.sparse.spmatrix
+    :return: Standardized data
+    :rtype: np.ndarray, sp.sparse.spmatrix
     """
 
     return sc.pp.log1p(
@@ -118,7 +125,7 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
 
     if sps.issparse(count_data):
 
-        mat_func = sps.csr_matrix if sps.isspmatrix_csr else sps.csc_matrix
+        mat_func = sps.csr_matrix if sps.isspmatrix_csr(count_data) else sps.csc_matrix
 
         cv_data = mat_func((
             rng.binomial(count_data.data, p=p),

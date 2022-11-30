@@ -6,8 +6,29 @@ import warnings
 from .utils.graph import get_shortest_paths, get_total_path
 from .utils.math import scalar_projection, get_centroids
 from .utils.mcv import mcv_pcs
-from .utils import vprint, order_dict_to_lists, is_iterable_arg
-from .utils.keys import OBS_TIME_KEY, OBSM_PCA_KEY, PROGRAM_KEY
+
+from .utils import (
+    vprint,
+    order_dict_to_lists,
+    is_iterable_arg,
+    standardize_data,
+    ragged_lists_to_array
+)
+
+from .utils.keys import (
+    OBS_TIME_KEY,
+    OBSM_PCA_KEY,
+    PROGRAM_KEY,
+    MCV_LOSS_SUBKEY,
+    CENTROID_SUBKEY,
+    ASSIGNMENT_NAME_SUBKEY,
+    ASSIGNMENT_CENTROID_SUBKEY,
+    CLOSEST_ASSIGNMENT_SUBKEY,
+    SHORTEST_PATH_SUBKEY,
+    CLUSTER_ORDER_SUBKEY,
+    CLUSTER_TIME_SUBKEY,
+    ASSIGNMENT_PATH_SUBKEY
+)
 
 from scipy.sparse.csgraph import shortest_path
 
@@ -68,9 +89,11 @@ def program_times(
 
     for prog in programs:
 
+        # Put program name into data subkeys
         _obsk = OBS_TIME_KEY.format(prog=prog)
         _obsmk = OBSM_PCA_KEY.format(prog=prog)
 
+        # Find features assigned to the program
         _var_idx = data.var[program_var_key] == prog
 
         vprint(
@@ -96,16 +119,18 @@ def program_times(
                 n_comps=n_comps if n_comps is None else n_comps[prog]
             )
 
+            # Add keys to the .uns object
             data.uns[_obsmk]['obs_time_key'] = _obsk
             data.uns[_obsmk]['obs_group_key'] = cluster_obs_key_dict[prog]
             data.uns[_obsmk]['obsm_key'] = _obsmk
 
+            # Put the cluster information into the .uns object
             _cluster_order, _cluster_times = order_dict_to_lists(
                 cluster_order_dict[prog]
             )
 
-            data.uns[_obsmk]['cluster_order'] = _cluster_order
-            data.uns[_obsmk]['cluster_times'] = _cluster_times
+            data.uns[_obsmk][CLUSTER_ORDER_SUBKEY] = _cluster_order
+            data.uns[_obsmk][CLUSTER_TIME_SUBKEY] = _cluster_times
 
     return data
 
@@ -158,19 +183,19 @@ def calculate_times(
 
     n = count_data.shape[0]
 
-    if not np.all(np.isin(
-        np.array(list(cluster_order_dict.keys())),
-        np.unique(cluster_vector))
+    # Make sure the order dict and the clusters in the data
+    # have the same cluster names
+    if not np.all(
+        np.isin(
+            np.array(list(cluster_order_dict.keys())),
+            np.unique(cluster_vector)
+        )
     ):
         raise ValueError(
             f"Mismatch between cluster_order_dict keys "
             f"{list(cluster_order_dict.keys())} and "
             f"cluster_vector values {np.unique(cluster_vector)}"
         )
-
-    adata = ad.AnnData(count_data, dtype=float)
-    sc.pp.normalize_per_cell(adata, min_counts=0)
-    sc.pp.log1p(adata)
 
     # If the number of components to use is not provided,
     # Do molecular crossvalidation
@@ -180,6 +205,12 @@ def calculate_times(
     else:
         _mcv_error = None
 
+    # Construct an adata object and normalize it
+    adata = standardize_data(
+        ad.AnnData(count_data, dtype=float)
+    )
+
+    # Calculate chosen PCA & neighbor graph
     sc.pp.pca(adata, n_comps=n_comps, zero_center=True)
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_comps)
 
@@ -218,9 +249,11 @@ def calculate_times(
         list(centroids.keys())
     )
 
-    vprint(f"Built {len(_total_path)} length path connecting "
-           f"{len(_tp_centroids)} groups",
-           verbose=verbose)
+    vprint(
+        f"Built {len(_total_path)} length path connecting "
+        f"{len(_tp_centroids)} groups",
+        verbose=verbose
+    )
 
     # Find the nearest points on the shortest path line for every point
     # As numeric position on _total_path
@@ -235,37 +268,59 @@ def calculate_times(
     # Scalar projections onto centroid-centroid vector
     times = np.full(n, np.nan, dtype=float)
 
+    # Save path information between clusters into a dict
     group = {
+        # Assigned index
         'index': np.zeros(n, dtype=int),
         'names': [],
         'centroids': [],
         'path': []
     }
 
-    for start, (end, left_time, right_time) in cluster_order_dict.items():
+    # Iterate through paths between cluster centroids
+    for i, (start, (end, l_time, r_time)) in enumerate(cluster_order_dict.items()):
 
+        # Wrap the centroids if needed
         if _tp_centroids[end] == 0:
             _right_centroid = len(_total_path)
         else:
             _right_centroid = _tp_centroids[end]
 
+        # Boolean index for the observations that are closest to the
+        # line connecting these groups
         _idx = _nearest_point_on_path >= _tp_centroids[start]
         _idx &= _nearest_point_on_path <= _right_centroid
 
-        vprint(f"Assigned times to {np.sum(_idx)} cells [{start} - {end}] "
-               f"conected by {_right_centroid - _tp_centroids[start]} points",
-               verbose=verbose)
+        vprint(
+            f"Assigned times to {np.sum(_idx)} cells [{start} - {end}] "
+            f"conected by {_right_centroid - _tp_centroids[start]} points",
+            verbose=verbose
+        )
 
+        # Get scalar projection in the PC space
+        # and scale to the time values
         times[_idx] = scalar_projection(
             adata.obsm['X_pca'],
             centroids[start],
             centroids[end],
-        )[_idx] * (right_time - left_time) + left_time
+        )[_idx] * (r_time - l_time) + l_time
 
-        group['index'][_idx] = len(group['names'])
+        # Append information about this path to lists in the dict
+        # Line number for the closest observations
+        group['index'][_idx] = i
+
+        # Line name (cluster / cluster)
         group['names'].append(f"{start} / {end}")
-        group['centroids'].append((centroids[start], centroids[end]))
-        group['path'].append(_total_path[max(0, _tp_centroids[start] - 1):_right_centroid])
+
+        # The location of the centroids for this path
+        group['centroids'].append(
+            (centroids[start], centroids[end])
+        )
+
+        # The path that connects the centroids
+        group['path'].append(
+            _total_path[max(0, _tp_centroids[start] - 1):_right_centroid]
+        )
 
     # Only do verbose message math if needed
     if verbose:
@@ -275,23 +330,17 @@ def calculate_times(
             verbose=verbose
         )
 
+    # PAD PATH WITH -1s AND CONVERT TO AN ARRAY ####
+    group['path'] = ragged_lists_to_array(group['path'])
+
     # Assign result information to an .uns key
-    adata.uns['pca']['centroids'] = centroids
-    adata.uns['pca']['shortest_path'] = _total_path
-    adata.uns['pca']['closest_path_assignment'] = group['index']
-    adata.uns['pca']['assignment_names'] = group['names']
-    adata.uns['pca']['assignment_centroids'] = group['centroids']
-    adata.uns['pca']['molecular_crossvalidation_mse'] = _mcv_error
-
-    # PAD PATH WITH -1s AND CONVERT TO AN ARRAY FOR ANNDATA.WRITE() ####
-    _path_max_len = max(map(len, group['path']))
-    group['path'] = np.array(
-        [[x[c] if c < len(x) else -1
-         for c in range(_path_max_len)]
-         for x in group['path']]
-    )
-
-    adata.uns['pca']['assignment_path'] = group['path']
+    adata.uns['pca'][CENTROID_SUBKEY] = centroids
+    adata.uns['pca'][SHORTEST_PATH_SUBKEY] = _total_path
+    adata.uns['pca'][CLOSEST_ASSIGNMENT_SUBKEY] = group['index']
+    adata.uns['pca'][ASSIGNMENT_NAME_SUBKEY] = group['names']
+    adata.uns['pca'][ASSIGNMENT_CENTROID_SUBKEY] = group['centroids']
+    adata.uns['pca'][MCV_LOSS_SUBKEY] = _mcv_error
+    adata.uns['pca'][ASSIGNMENT_PATH_SUBKEY] = group['path']
 
     if return_components:
         return times, adata.obsm['X_pca'], adata.uns['pca']

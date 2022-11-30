@@ -1,5 +1,7 @@
 import numpy as np
 import anndata as ad
+import scanpy as sc
+
 import pandas.api.types as pat
 import warnings
 
@@ -171,3 +173,34 @@ def copy_count_layer(data, layer):
     d.var = data.var.copy()
 
     return d
+
+
+def standardize_data(adata):
+
+    sc.pp.normalize_per_cell(adata, min_counts=0)
+    sc.pp.log1p(adata)
+
+    return adata
+
+
+def ragged_lists_to_array(
+    lists,
+    pad_value=-1
+):
+    """
+    Pad ragged lists out to arrays
+
+    :param lists: List of lists
+    :type lists: list(list)
+    :param pad_value: Value to pad with,
+        defaults to -1
+    :type pad_value: any, optional
+    """
+
+    _max_len = max(map(len, lists))
+
+    return np.array(
+        [[x[c] if c < len(x) else pad_value
+         for c in range(_max_len)]
+         for x in lists]
+    )

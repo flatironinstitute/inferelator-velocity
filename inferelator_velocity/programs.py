@@ -3,7 +3,10 @@ import anndata as ad
 from scipy import sparse, stats
 
 import scanpy as sc
-from scanpy.neighbors import compute_neighbors_umap, _compute_connectivities_umap
+from scanpy.neighbors import (
+    compute_neighbors_umap,
+    _compute_connectivities_umap
+)
 
 from sklearn.cluster import AgglomerativeClustering
 from scipy.stats import spearmanr
@@ -11,9 +14,27 @@ from sklearn.metrics import pairwise_distances
 
 from inferelator.regression.mi import _make_array_discrete
 from .utils.mcv import mcv_pcs
-from .utils import vprint, copy_count_layer
+
+from .utils import (
+    vprint,
+    copy_count_layer,
+    standardize_data
+)
 from .metrics import information_distance
-from .utils.keys import N_BINS, PROGRAM_KEY
+
+from .utils.keys import (
+    N_BINS,
+    PROGRAM_KEY,
+    METRIC_SUBKEY,
+    METRIC_GENE_SUBKEY,
+    METRIC_DIST_SUBKEY,
+    MCV_LOSS_SUBKEY,
+    LEIDEN_CORR_SUBKEY,
+    PROGRAM_CLUST_SUBKEY,
+    N_COMP_SUBKEY,
+    N_PROG_SUBKEY,
+    PROG_NAMES_SUBKEY
+)
 
 
 def program_select(
@@ -92,8 +113,7 @@ def program_select(
     #### PREPROCESSING / NORMALIZATION ####
 
     if normalize:
-        sc.pp.normalize_per_cell(d)
-        sc.pp.log1p(d)
+        standardize_data(d)
 
     if filter_to_hvg:
         sc.pp.highly_variable_genes(d, max_mean=np.inf, min_disp=0.01)
@@ -225,15 +245,15 @@ def program_select(
     #### ADD RESULTS OBJECT TO UNS ####
 
     data.uns[PROGRAM_KEY] = {
-        'metric': metric,
-        'leiden_correlation': _rho_pc1,
-        'metric_genes': d.var_names.values,
-        f'{metric}_distance': dists,
-        'cluster_program_map': clust_map,
-        'n_comps': n_comps,
-        'n_programs': n_programs,
-        'program_names': np.unique(data.var[PROGRAM_KEY]),
-        'molecular_cv_loss': mcv_loss_arr
+        METRIC_SUBKEY: metric,
+        LEIDEN_CORR_SUBKEY: _rho_pc1,
+        METRIC_GENE_SUBKEY: d.var_names.values,
+        METRIC_DIST_SUBKEY.format(metric=metric): dists,
+        PROGRAM_CLUST_SUBKEY: clust_map,
+        N_COMP_SUBKEY: n_comps,
+        N_PROG_SUBKEY: n_programs,
+        PROG_NAMES_SUBKEY: np.unique(data.var[PROGRAM_KEY]),
+        MCV_LOSS_SUBKEY: mcv_loss_arr
     }
 
     if metric == 'information':
