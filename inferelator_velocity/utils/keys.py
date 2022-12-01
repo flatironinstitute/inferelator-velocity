@@ -2,11 +2,14 @@ OBS_TIME_KEY = "program_{prog}_time"
 OBSM_PCA_KEY ="program_{prog}_pca"
 
 OBSP_DIST_KEY = "program_{prog}_distances"
-UNS_GRAPH_SUBKEY = "program_{prog}_graph_optimal_npcs"
+UNS_GRAPH_SUBKEY = "program_{prog}_graph"
 
 PROGRAM_KEY = "programs"
 
 N_BINS = 10
+
+NOISE2SELF_KEY = 'noise2self'
+NOISE2SELF_DIST_KEY = 'noise2self_distance_graph'
 
 METRIC_SUBKEY = 'metric'
 METRIC_GENE_SUBKEY = 'metric_genes'

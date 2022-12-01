@@ -1,8 +1,18 @@
 import numpy as np
 
 from .utils.noise2self import knn_noise2self
-from .utils import vprint
-from .utils.keys import OBSP_DIST_KEY, UNS_GRAPH_SUBKEY, PROGRAM_KEY
+from .utils import (
+    vprint,
+    is_iterable_arg
+)
+from .utils.keys import (
+    OBSP_DIST_KEY,
+    UNS_GRAPH_SUBKEY,
+    PROGRAM_KEY,
+    NOISE2SELF_KEY,
+    NOISE2SELF_DIST_KEY,
+    PROG_NAMES_SUBKEY
+)
 
 
 def global_graph(
@@ -21,7 +31,7 @@ def global_graph(
 
     lref = data.X if layer == "X" else data.layers[layer]
 
-    data.obsp['noise2self_distance_graph'], npc, nn, nk = knn_noise2self(
+    data.obsp[NOISE2SELF_DIST_KEY], npc, nn, nk = knn_noise2self(
         lref,
         neighbors=neighbors,
         npcs=npcs,
@@ -36,17 +46,17 @@ def global_graph(
         verbose=verbose
     )
 
-    if 'noise2self' not in data.uns:
-        data.uns['noise2self'] = {}
+    if NOISE2SELF_KEY not in data.uns:
+        data.uns[NOISE2SELF_KEY] = {}
 
-    data.uns['noise2self']['npcs'] = npc
-    data.uns['noise2self']['neighbors'] = nn
+    data.uns[NOISE2SELF_KEY]['npcs'] = npc
+    data.uns[NOISE2SELF_KEY]['neighbors'] = nn
 
 
 def program_graphs(
     data,
     layer="X",
-    program_var_key='program',
+    program_var_key=PROGRAM_KEY,
     programs=None,
     neighbors=None,
     npcs=None,
@@ -60,7 +70,7 @@ def program_graphs(
     :type data: ad.AnnData
     :param layer: Layer containing count data, defaults to "X"
     :type layer: str, optional
-    :param program_var_key: Key to find program IDs in var data, defaults to 'program'
+    :param program_var_key: Key to find program IDs in var data, defaults to 'programs'
     :type program_var_key: str, optional
     :param programs: Program IDs to calculate times for, defaults to None
     :type programs: tuple, optional
@@ -83,10 +93,10 @@ def program_graphs(
     if programs is None:
         programs = [
             p
-            for p in data.uns[PROGRAM_KEY]['program_names']
+            for p in data.uns[PROGRAM_KEY][PROG_NAMES_SUBKEY]
             if p != '-1'
         ]
-    elif type(programs) == list or type(programs) == tuple or isinstance(programs, np.ndarray):
+    elif is_iterable_arg(programs):
         pass
     else:
         programs = [programs]
@@ -100,7 +110,8 @@ def program_graphs(
         vprint(
             f"Embedding graph for {prog} "
             f"containing {np.sum(_var_idx)} genes",
-            verbose=verbose)
+            verbose=verbose
+        )
 
         lref = data.X if layer == "X" else data.layers[layer]
 
@@ -119,9 +130,14 @@ def program_graphs(
             verbose=verbose
         )
 
-        if 'programs' not in data.uns:
-            data.uns['programs'] = {UNS_GRAPH_SUBKEY.format(prog=prog): npc}
-        else:
-            data.uns['programs'][UNS_GRAPH_SUBKEY.format(prog=prog)] = npc
+        if PROGRAM_KEY not in data.uns:
+            data.uns[PROGRAM_KEY] = {}
+
+        _uns_prog_key = UNS_GRAPH_SUBKEY.format(prog=prog)
+        if _uns_prog_key not in data.uns[PROGRAM_KEY]:
+            data.uns[PROGRAM_KEY][_uns_prog_key] = {}
+
+        data.uns[PROGRAM_KEY][_uns_prog_key]['npcs'] = npc
+        data.uns[PROGRAM_KEY][_uns_prog_key]['neighbors'] = nn
 
     return data
