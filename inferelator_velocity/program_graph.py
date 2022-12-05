@@ -130,10 +130,12 @@ def program_graphs(
             verbose=verbose
         )
 
+        # Add basic summary stats to the .uns object
         if PROGRAM_KEY not in data.uns:
             data.uns[PROGRAM_KEY] = {}
 
         _uns_prog_key = UNS_GRAPH_SUBKEY.format(prog=prog)
+
         if _uns_prog_key not in data.uns[PROGRAM_KEY]:
             data.uns[PROGRAM_KEY][_uns_prog_key] = {}
 

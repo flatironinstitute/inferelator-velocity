@@ -71,11 +71,11 @@ def mcv_plot(
             "# Components"
         )
 
-    ax.annotate(
-        f"{min_comp} Comps.",
-        xy=(0.2, 0.8),
-        xycoords='axes fraction'
-    )
+        ax.annotate(
+            f"{min_comp} Comps.",
+            xy=(0.2, 0.8),
+            xycoords='axes fraction'
+        )
 
     if fig is None:
         return ax
