@@ -348,7 +348,11 @@ def calculate_times(
         return times
 
 
-def wrap_times(data, program, wrap_time):
+def wrap_times(
+    data,
+    program,
+    wrap_time
+):
     """
     Wrap a time value at a specific time
     Useful if time is a circle
@@ -375,9 +379,20 @@ def wrap_times(data, program, wrap_time):
             f"{_times.min():.3f} to {_times.max():3f}"
         )
 
-    _times[_times > wrap_time] = _times[_times > wrap_time] - wrap_time
-    _times[_times < 0] = _times[_times < 0] + wrap_time
-
-    data.obs[_obsk] = _times
+    data.obs[_obsk] = _wrap_time(_times, wrap_time)
 
     return data
+
+
+def _wrap_time(
+    times,
+    wrap_time
+):
+    """
+    Wrap values above something and below zero
+    """
+
+    times[times > wrap_time] = times[times > wrap_time] - wrap_time
+    times[times < 0] = times[times < 0] + wrap_time
+
+    return times
