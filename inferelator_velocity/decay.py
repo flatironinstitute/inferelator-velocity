@@ -338,19 +338,19 @@ def _estimate_decay(
         )
 
     # Get the velocity / expression ratio
-    # Mask to NaN where expression is 0
+    # Mask to infinity where expression is 0
     ratio_data = np.divide(
         velocity_data,
         expression_data,
         out=np.full_like(
             velocity_data,
-            np.nan,
+            np.inf,
             dtype=float
         ),
         where=expression_data != 0
     )
 
-    if np.all(np.isnan(ratio_data)):
+    if np.all(np.isinf(ratio_data)):
         return 0., 0.
 
     # Find the quantile cutoffs for decay curve fitting
