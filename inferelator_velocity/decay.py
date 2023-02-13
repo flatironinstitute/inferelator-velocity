@@ -24,28 +24,40 @@ def calc_decay_sliding_windows(
     **kwargs
 ):
     """
-    Calculate decay constants in a sliding window across a time axis
+    Calculate decay constants in a sliding window
+    across a time axis
 
-    :param expression_data: Gene expression data [N Observations x M Genes]
+    :param expression_data: Gene expression data
+        [N Observations x M Genes]
     :type expression_data: np.ndarray (float)
-    :param velocity_data: Gene velocity data [N Observations x M Genes]
+    :param velocity_data: Gene velocity data
+        [N Observations x M Genes]
     :type velocity_data: np.ndarray (float)
-    :param time_data: Time data [N Observations, ]
+    :param time_data: Time data
+        [N Observations]
     :type time_data: np.ndarray (float)
-    :param n_windows: Number of windows on the time_data axis, defaults to None.
+    :param n_windows: Number of windows on the time_data axis,
+        defaults to None.
         Either this or centers & width must be set
     :type n_windows: integer, optional
-    :param centers: Center points for the windows, defaults to None
+    :param centers: Center points for the windows,
+        defaults to None
     :type centers: np.ndarray, optional
     :param width: Width of the windows, defaults to None
     :type width: float, optional
-    :param include_alpha: Include estimates of alpha parameter, defaults to True
+    :param include_alpha: Include estimates of alpha parameter,
+        defaults to True
     :type include_alpha: bool, optional
-    :param bootstrap_estimates: Bootstrap estimates of decay & confidence interval, defaults to False
+    :param bootstrap_estimates: Bootstrap estimates of decay &
+        confidence interval, defaults to False
     :type bootstrap_estimates: bool, optional
-    :raises ValueError: Raises ValueError when the wrong combination of kwargs is set
-    :return: Returns
-    :rtype: _type_
+    :raises ValueError: Raises ValueError when the wrong combination
+        of kwargs is set
+    :return: Returns estimates of decay constants, CI or SE estimates,
+        estimates of the transcriptional output, and the window centers.
+        All estimates are [M Genes x n_windows].
+        Window centers are [n_windows]
+    :rtype: np.ndarray, np.ndarray, np.ndarray, np.ndarray
     """
 
     n, m = expression_data.shape
@@ -57,26 +69,47 @@ def calc_decay_sliding_windows(
         width=width
     )
 
+    # Calculate decay for a subset of observations
+    # near a specific center point
     def _calc_window_decay(center):
-        lowend, highend = center - half_width, center + half_width
+        lowend = center - half_width
+        highend = center + half_width
 
-        keep_idx = (time_data >= lowend) & (time_data <= highend) & ~np.isnan(time_data)
+        keep_idx = time_data >= lowend
+        keep_idx &= time_data <= highend
+        keep_idx &= ~np.isnan(time_data)
 
         if np.sum(keep_idx) < 2:
-            return (np.full(expression_data.shape[1], np.nan),
-                    np.full(expression_data.shape[1], np.nan),
-                    np.full(expression_data.shape[1], np.nan) if include_alpha else None)
+            return (
+                np.full(m, np.nan),
+                np.full(m, np.nan),
+                np.full(m, np.nan) if include_alpha else None
+            )
 
-        decay_func = calc_decay_bootstraps if bootstrap_estimates else calc_decay
+        if bootstrap_estimates:
+            decay_func = calc_decay_bootstraps
+        else:
+            decay_func = calc_decay
 
-        return decay_func(expression_data[keep_idx, :],
-                          velocity_data[keep_idx, :],
-                          lstatus=False,
-                          include_alpha=include_alpha,
-                          **kwargs)
+        return decay_func(
+            expression_data[keep_idx, :],
+            velocity_data[keep_idx, :],
+            lstatus=False,
+            include_alpha=include_alpha,
+            **kwargs
+        )
 
-    results = [_calc_window_decay(x) for x in tqdm(centers)]
-    return [x[0] for x in results], [x[1] for x in results], [x[2] for x in results], centers
+    results = [
+        _calc_window_decay(x)
+        for x in tqdm(centers)
+    ]
+
+    return (
+        [x[0] for x in results],
+        [x[1] for x in results],
+        [x[2] for x in results],
+        centers
+    )
 
 
 def calc_decay_bootstraps(
@@ -84,13 +117,14 @@ def calc_decay_bootstraps(
     velocity_data,
     n_bootstraps=15,
     bootstrap_ratio=1.0,
-    random_seed=8675309,
+    random_seed=500,
     lstatus=True,
-    confidence_interval = 0.95,
+    confidence_interval=0.95,
     **kwargs
 ):
     """
-    Estimate decay constant lambda for dX/dt = -lambda X + alpha and calculate
+    Estimate decay constant lambda for
+    dX/dt = -lambda X + alpha and calculate
     confidence intervals by bootstrapping.
 
     :param expression_data: Gene expression data [N Observations x M Genes]
@@ -102,35 +136,61 @@ def calc_decay_bootstraps(
     :param bootstrap_ratio: Fraction of samples to select for each bootstrap,
         defaults to 1.0
     :type bootstrap_ratio: float, optional
-    :param random_seed: Seed for bootstrapping RNG, defaults to 8675309
+    :param random_seed: Seed for bootstrapping RNG, defaults to 500
     :type random_seed: int, optional
     :param lstatus: Display status bar, defaults to True
     :type lstatus: bool, optional
-    :param confidence_interval: Confidence interval between 0 and 1, defaults to 0.95
+    :param confidence_interval: Confidence interval between 0 and 1,
+        defaults to 0.95
     :type confidence_interval: float, optional
     """
 
     if n_bootstraps < 2:
-        raise ValueError(f'n_bootstraps must be > 1, {n_bootstraps} provided')
+        raise ValueError(
+            f'n_bootstraps must be > 1, {n_bootstraps} provided'
+        )
+
+    n, m = expression_data.shape
 
     lstatus = trange if lstatus else range
     rng = np.random.RandomState(seed=random_seed)
 
     # Number to select per bootstrap
     # Minimum of 1
-    n_to_choose = max(1, int(bootstrap_ratio * expression_data.shape[0]))
+    n_to_choose = max(1, int(bootstrap_ratio * n))
 
     def _calc_boot():
-        pick_idx = rng.choice(np.arange(expression_data.shape[0]), size=n_to_choose)
-        return calc_decay(expression_data[pick_idx, :],
-                          velocity_data[pick_idx, :],
-                          lstatus=False, **kwargs)
+        pick_idx = rng.choice(
+            np.arange(n),
+            size=n_to_choose,
+            replace=True
+        )
+
+        return calc_decay(
+            expression_data[pick_idx, :],
+            velocity_data[pick_idx, :],
+            lstatus=False,
+            **kwargs
+        )
 
     bootstrap_results = [_calc_boot() for _ in range(n_bootstraps)]
-    decays = np.vstack([x[0] for x in bootstrap_results])
-    alphas = np.vstack([x[2] for x in bootstrap_results]) if bootstrap_results[0][2] is not None else None
 
-    t = scipy.stats.t.ppf((1 + confidence_interval) / 2, n_bootstraps - 1)
+    decays = np.vstack(
+        [x[0] for x in bootstrap_results]
+    )
+
+    if bootstrap_results[0][2] is not None:
+        alphas = np.vstack(
+            [x[2] for x in bootstrap_results]
+        )
+    else:
+        alphas = None
+
+    t = scipy.stats.t.ppf(
+        (1 + confidence_interval) / 2,
+        n_bootstraps - 1
+    )
+
     ci = t * np.nanstd(decays, axis=0) / np.sqrt(n_bootstraps)
 
     return np.nanmean(decays, axis=0), ci, alphas
@@ -169,12 +229,20 @@ def calc_decay(
     lstatus = trange if lstatus else range
 
     if expression_data.shape != velocity_data.shape:
-        raise ValueError(f"Expression data {expression_data.shape} ",
-                         f"and velocity data {velocity_data.shape} ",
-                         "are not the same size")
+        raise ValueError(
+            f"Expression data {expression_data.shape} ",
+            f"and velocity data {velocity_data.shape} ",
+            "are not the same size"
+        )
 
-    if ((len(decay_quantiles) != 2) or not isinstance(decay_quantiles, (tuple, list))):
-        raise ValueError(f"decay_quantiles must be a tuple of two floats; {decay_quantiles} passed")
+    try:
+        if len(decay_quantiles) != 2:
+            raise TypeError
+    except TypeError:
+        raise ValueError(
+            "decay_quantiles must be a tuple of two floats; "
+            f"{decay_quantiles} passed"
+        )
 
     n, m = expression_data.shape
 
@@ -186,7 +254,7 @@ def calc_decay(
             decay_quantiles,
             alpha_quantile=alpha_quantile if include_alpha else None,
         ) for i in lstatus(m)
-        ])
+    ])
 
     return results[:, 0] * -1, results[:, 2], results[:, 1]
 
@@ -274,9 +342,16 @@ def _estimate_decay(
     ratio_data = np.divide(
         velocity_data,
         expression_data,
-        out=np.full_like(velocity_data, np.nan, dtype=float),
+        out=np.full_like(
+            velocity_data,
+            np.nan,
+            dtype=float
+        ),
         where=expression_data != 0
     )
+
+    if np.all(np.isnan(ratio_data)):
+        return 0., 0.
 
     # Find the quantile cutoffs for decay curve fitting
     ratio_cuts = np.nanquantile(ratio_data, decay_quantiles)
@@ -292,15 +367,12 @@ def _estimate_decay(
         velocity_data[keep_observations]
     )
 
-    # Get decay standard errors
-    # Throw away errors that are for rectified decays
-    decay_se = ols_slope_se[1] if ols_slope_se[0] <= 0 else 0.
+    # Rectify decay slopes that are positive to zero
+    # Throw away errors for rectified decays
+    if ols_slope_se[0] >= 0:
+        ols_slope_se = (0., 0.)
 
-    # Get decay coefficients
-    # Ceiling at zero
-    decay = min(ols_slope_se[0], 0)
-
-    return decay, decay_se
+    return ols_slope_se
 
 
 def _estimate_alpha(
@@ -328,7 +400,9 @@ def _estimate_alpha(
     """
 
     if decay_est is not None and expression_data is None:
-        raise ValueError("expression_data must be set if decay_est is")
+        raise ValueError(
+            "expression_data must be set if decay_est is"
+        )
 
     if decay_est is not None and decay_est != 0:
         velocity_data = velocity_data - expression_data * decay_est
