@@ -2,7 +2,11 @@ import tqdm
 import numpy as np
 import scipy.sparse as sps
 import scanpy as sc
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score
+)
 
 
 def mcv_pcs(
@@ -125,20 +129,23 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
 
     if sps.issparse(count_data):
 
-        mat_func = sps.csr_matrix if sps.isspmatrix_csr(count_data) else sps.csc_matrix
+        if sps.isspmatrix_csr(count_data):
+            mat_func = sps.csr_matrix
+        else:
+            mat_func = sps.csc_matrix
 
         cv_data = mat_func((
             rng.binomial(count_data.data, p=p),
             count_data.indices,
             count_data.indptr),
-            shape = count_data.shape
+            shape=count_data.shape
         )
 
         count_data = mat_func((
             count_data.data - cv_data.data,
             count_data.indices,
             count_data.indptr),
-            shape = count_data.shape
+            shape=count_data.shape
         )
 
     else:

@@ -270,7 +270,7 @@ def _dist_to_row_stochastic(graph):
 
     if sps.issparse(graph):
 
-        rowsum = graph.sum(axis = 1).A1
+        rowsum = graph.sum(axis=1).A1
         rowsum[rowsum == 0] = 1.
 
         # Dot product between inverse rowsum diagonalized
@@ -283,9 +283,9 @@ def _dist_to_row_stochastic(graph):
                 shape=graph.shape,
                 format='csr',
                 dtype=graph.dtype
-                ),
-                graph
-            )
+            ),
+            graph
+        )
     else:
 
         rowsum = graph.sum(axis=1)

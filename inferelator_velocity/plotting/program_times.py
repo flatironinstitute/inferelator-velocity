@@ -49,8 +49,8 @@ def program_time_summary(
         'pca2' draws PC1/PC3 plot
         'hist' draws histogram of cells over time colored by cluster
         'cbar' draws legend colorbar,
-        '{cluster_1_label} / {cluster_2_label} draws PC1/PC2 plot with cells from
-            the cluster_1 / cluster_2 vector,
+        '{cluster_1_label} / {cluster_2_label} draws PC1/PC2 plot with cells
+            from the cluster_1 / cluster_2 vector,
         if axis is not present it will be skipped,
         defaults to None (new figure will be drawn automatically)
     :type ax: dict[Axes], optional
@@ -58,7 +58,8 @@ def program_time_summary(
     :type hist_bins: int, optional
     :param cbar_title: Title for colorbar/legend, defaults to None
     :type cbar_title: str, optional
-    :param cbar_horizontal: Draw colorbar/legend horizontally, defaults to False
+    :param cbar_horizontal: Draw colorbar/legend horizontally,
+        defaults to False
     :type cbar_horizontal: bool, optional
     :param wrap_time: Wrap times at a specific time, defaults to None
     :type wrap_time: float, optional
@@ -72,8 +73,8 @@ def program_time_summary(
     :type panel_tags: dict, bool, optional
     :param alpha: Alpha value for plots, defaults to 0.5
     :type alpha: float, optional
-    :raises RuntimeError: Raises RuntimeError if `ifv.program_times()` keys are not
-        present in the adata object
+    :raises RuntimeError: Raises RuntimeError if `ifv.program_times()` keys
+        are not present in the adata object
     :return: Returns figure & axes objects if `ax=None` was passed, otherwise
         returns axes
     :rtype: matplotlib.Figure (optional), dict[Axes]
@@ -119,7 +120,10 @@ def program_time_summary(
                           for i in range(len(cluster_order))}
 
     # VECTOR OF COLORS BASED ON CLUSTER LABELS ####
-    _color_vector = _get_colors(adata.obs[obs_group_key].values, cluster_colors)
+    _color_vector = _get_colors(
+        adata.obs[obs_group_key].values,
+        cluster_colors
+    )
 
     # SET UP FIGURE IF NOT PROVIDED ####
     if ax is None:
@@ -128,29 +132,43 @@ def program_time_summary(
 
         # IF THERE ARE 4 OR FEWER CLUSTER-CLUSTER PAIRS, DRAW 4x2 ####
         if n < 5:
-            _groups = [_panels[i] if i < n else '.' for i in range(4)]
-            _layout = [_layout[i] + [_groups[i]] for i in range(4)]
+            _groups = [
+                _panels[i] if i < n else '.'
+                for i in range(4)
+            ]
+            _layout = [
+                _layout[i] + [_groups[i]]
+                for i in range(4)
+            ]
             _figsize = (4, 8)
 
         # IF THERE ARE 8 OR FEWER CLUSTER-CLUSTER PAIRS, DRAW 4x3 ####
         elif n < 9:
-            _groups = [_panels[i] if i < n else '.' for i in range(8)]
-            _layout = [_layout[i] + [_groups[2*i], _groups[2*i + 1]] for i in range(4)]
+            _groups = [
+                _panels[i] if i < n else '.'
+                for i in range(8)
+            ]
+            _layout = [
+                _layout[i] + [_groups[2*i], _groups[2*i + 1]]
+                for i in range(4)
+            ]
             _figsize = (6, 8)
 
         # IF THERE MORE THAN 8 CLUSTER-CLUSTER PAIRS, DRAW 4x4 ####
         else:
             _groups = [_panels[i] if i < n else '.' for i in range(12)]
-            _layout = [_layout[i] + [_groups[3*i], _groups[3*i + 1], _groups[3*i + 2]]
-                       for i in range(4)]
+            _layout = [
+                _layout[i] + [_groups[3*i], _groups[3*i + 1], _groups[3*i + 2]]
+                for i in range(4)
+            ]
             _figsize = (8, 8)
 
         # WITH MORE THAN 12 CLUSTER-CLUSTER PAIRS, WARN ####
         if n > 12:
             warnings.warn(
-                "program_time_summary() can only autodraw up to 12 cluster paths, "
-                f"{n} paths are present; generate a figure and provide axes to `ax` "
-                "to plot other paths",
+                "program_time_summary() can only autodraw up to 12 clusters, "
+                f"{n} paths are present; generate a figure and provide axes "
+                "to `ax` to plot other paths",
                 RuntimeWarning
             )
 
@@ -178,7 +196,9 @@ def program_time_summary(
     _centroids = [adata.uns[uns_key]['centroids'][x] for x in cluster_order]
 
     if wrap_time is not None:
-        _centroids = _centroids + [adata.uns[uns_key]['centroids'][cluster_order[0]]]
+        _centroids = _centroids + [
+            adata.uns[uns_key]['centroids'][cluster_order[0]]
+        ]
 
     _var_exp = adata.uns[uns_key]['variance_ratio'].copy()
     _var_exp /= np.sum(adata.uns[uns_key]['variance_ratio'])
@@ -197,11 +217,13 @@ def program_time_summary(
 
         _n_comps = len(adata.uns[uns_key]['variance'])
         _total_var = np.sum(adata.uns[uns_key]['variance_ratio']) * 100
-        ax[ax_key_pref + 'pca1'].annotate(f"{_n_comps} PCS ({_total_var:.1f}%)",
-                                          xy=(0, 0),
-                                          xycoords='data',
-                                          xytext=(0.25, 0.05),
-                                          textcoords='axes fraction')
+        ax[ax_key_pref + 'pca1'].annotate(
+            f"{_n_comps} PCS ({_total_var:.1f}%)",
+            xy=(0, 0),
+            xycoords='data',
+            xytext=(0.25, 0.05),
+            textcoords='axes fraction'
+        )
 
         ax[ax_key_pref + 'pca1'].set_xlabel(f"PC1 ({_var_exp[0]:.1f}%)")
         ax[ax_key_pref + 'pca1'].set_ylabel(f"PC2 ({_var_exp[1]:.1f}%)")
@@ -293,7 +315,16 @@ def program_time_summary(
         return ax
 
 
-def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_path=None, s=1, alpha=0.5):
+def _plot_pca(
+    comps,
+    ax,
+    colors,
+    bool_idx=None,
+    centroid_indices=None,
+    shortest_path=None,
+    s=1,
+    alpha=0.5
+):
     """
     Plot principal components as a scatter plot into a provided axis
 
@@ -317,13 +348,16 @@ def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_
     :type s: int, optional
     :param alpha: Point alpha, defaults to 0.5
     :type alpha: float, optional
-    :raises ValueError: Raises a ValueError if colors and comps are different sizes
+    :raises ValueError: Raises a ValueError if colors and comps are different
+        sizes
     :return: Returns the PathCollection created by matplotlib scatter
     :rtype: matplotlib.collections.PathCollection
     """
 
     if len(colors) != comps.shape[0]:
-        raise ValueError(f"PCA comps size {comps.shape} != color vector [{len(colors)}]")
+        raise ValueError(
+            f"PCA comps size {comps.shape} != color vector [{len(colors)}]"
+        )
 
     # GET LIMIT FROM ENTIRE DATASET WITHOUT MASKING ####
     _xlim = comps[:, 0].min(), comps[:, 0].max()
@@ -338,9 +372,13 @@ def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_
     rgen.shuffle(overplot_shuffle)
 
     # SCATTER PLOT ####
-    scatter_ref = ax.scatter(comps[bool_idx, 0][overplot_shuffle], comps[bool_idx, 1][overplot_shuffle],
-                             c=colors[bool_idx][overplot_shuffle],
-                             s=s, alpha=alpha)
+    scatter_ref = ax.scatter(
+        comps[bool_idx, 0][overplot_shuffle],
+        comps[bool_idx, 1][overplot_shuffle],
+        c=colors[bool_idx][overplot_shuffle],
+        s=s,
+        alpha=alpha
+    )
 
     # HIGHLIGHT CENTROIDS ####
     if centroid_indices is not None:
@@ -348,16 +386,24 @@ def _plot_pca(comps, ax, colors, bool_idx=None, centroid_indices=None, shortest_
                    c='None', edgecolor='black', s=150 * s, alpha=1)
 
         for i in range(len(centroid_indices) - 1):
-            ax.plot(comps[[centroid_indices[i], centroid_indices[i + 1]], 0],
-                    comps[[centroid_indices[i], centroid_indices[i + 1]], 1],
-                    ls = '--', color='black',
-                    alpha = 0.5,
-                    lw = 1)
+            ax.plot(
+                comps[[centroid_indices[i], centroid_indices[i + 1]], 0],
+                comps[[centroid_indices[i], centroid_indices[i + 1]], 1],
+                ls='--',
+                color='black',
+                alpha=0.5,
+                lw=1
+            )
 
     # ADD PATH WALK ####
     if shortest_path is not None:
-        ax.plot(comps[shortest_path, 0], comps[shortest_path, 1],
-                '-ok', markersize=3, linewidth=1)
+        ax.plot(
+            comps[shortest_path, 0],
+            comps[shortest_path, 1],
+            '-ok',
+            markersize=3,
+            linewidth=1
+        )
 
     ax.set_yticklabels([])
     ax.set_xticklabels([])
@@ -395,14 +441,29 @@ def _get_time_hist_data(time_data, group_data, bins, group_order=None):
         group_order = np.unique(group_data)
 
     cuts = np.linspace(np.nanmin(time_data), np.nanmax(time_data), bins)
-    return [np.bincount(pd.cut(time_data[group_data == x],
-                               cuts,
-                               labels=np.arange(len(cuts) - 1)
-                        ).dropna(),
-                        minlength=len(cuts) - 1) for x in group_order]
+
+    return [
+        np.bincount(
+            pd.cut(
+                time_data[group_data == x],
+                cuts,
+                labels=np.arange(len(cuts) - 1)
+            ).dropna(),
+            minlength=len(cuts) - 1
+        )
+        for x in group_order
+    ]
 
 
-def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colors=None, bins=None, xtick_format="%.0f"):
+def _plot_time_histogram(
+    time_data,
+    group_data,
+    ax,
+    group_order=None,
+    group_colors=None,
+    bins=None,
+    xtick_format="%.0f"
+):
 
     # Set a default number of bins
     # Integer range or 50, whichever is larger
@@ -416,22 +477,35 @@ def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colo
         group_order = np.unique(group_data)
 
     if group_colors is None:
-         _cmap = cm.get_cmap(DEFAULT_CMAP, len(group_order))
-         group_colors = [colors.rgb2hex(_cmap(i)) for i in range(len(group_order))]
+        _cmap = cm.get_cmap(DEFAULT_CMAP, len(group_order))
+        group_colors = [
+            colors.rgb2hex(_cmap(i))
+            for i in range(len(group_order))
+        ]
 
     hist_limit, fref = [], []
     hist_labels = np.linspace(0.5, bins - 0.5, bins - 1)
 
     bottom_line = None
-    for j, hist_data in enumerate(_get_time_hist_data(time_data, group_data, bins, group_order)):
+    for j, hist_data in enumerate(
+        _get_time_hist_data(
+            time_data,
+            group_data,
+            bins,
+            group_order
+        )
+    ):
 
-        bottom_line = np.zeros_like(hist_data) if bottom_line is None else bottom_line
+        if bottom_line is None:
+            bottom_line = np.zeros_like(hist_data)
 
-        fref.append(ax.bar(hist_labels,
-                           hist_data,
-                           bottom=bottom_line,
-                           width=0.5,
-                           color=group_colors[group_order[j]]))
+        fref.append(ax.bar(
+            hist_labels,
+            hist_data,
+            bottom=bottom_line,
+            width=0.5,
+            color=group_colors[group_order[j]]
+        ))
 
         bottom_line = bottom_line + hist_data
 
@@ -445,9 +519,11 @@ def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colo
     ax.set_xticks([x * 10 for x in range(n_xtick)])
     ax.set_xticklabels(
         FormatStrFormatter(xtick_format).format_ticks(
-            np.linspace(np.nanmin(time_data),
-                        np.nanmax(time_data),
-                        n_xtick)
+            np.linspace(
+                np.nanmin(time_data),
+                np.nanmax(time_data),
+                n_xtick
+            )
         ),
         rotation=90
     )
@@ -458,13 +534,15 @@ def _plot_time_histogram(time_data, group_data, ax, group_order=None, group_colo
 def _add_legend(ax, colors, labels, title=None, horizontal=False, **kwargs):
     ax.axis('off')
     _ = [ax.scatter([], [], c=c, label=l) for c, l in zip(colors, labels)]
-    return ax.legend(frameon=False,
-                     loc='center left',
-                     ncol=len(labels) if horizontal else 1,
-                     handletextpad=0.1 if horizontal else 0.8,
-                     borderpad=0.1,
-                     borderaxespad=0.1,
-                     columnspacing=1 if horizontal else 0,
-                     mode=None,
-                     title=title,
-                     **kwargs)
+    return ax.legend(
+        frameon=False,
+        loc='center left',
+        ncol=len(labels) if horizontal else 1,
+        handletextpad=0.1 if horizontal else 0.8,
+        borderpad=0.1,
+        borderaxespad=0.1,
+        columnspacing=1 if horizontal else 0,
+        mode=None,
+        title=title,
+        **kwargs
+    )

@@ -8,16 +8,21 @@ def calc_velocity(expr, time_axis, neighbor_graph, wrap_time=None):
 
     :param expr: Samples x Genes numpy with expression data
     :param time_axis: Samples, numpy array
-    :param neighbor_graph: Samples x Samples numpy or scipy.sparse with nearest neighbor distances
+    :param neighbor_graph: Samples x Samples numpy or scipy.sparse
+        with nearest neighbor distances
     :return: Samples x Genes numpy with velocity data
     """
 
     return _np.vstack(
-        [_calc_local_velocity(expr[n_idx, :].copy(),
-                              time_axis[n_idx].copy(),
-                              (n_idx == i).nonzero()[0][0],
-                              wrap_time=wrap_time)
-         for i, n_idx in _find_local(expr, neighbor_graph)]
+        [
+            _calc_local_velocity(
+                expr[n_idx, :].copy(),
+                time_axis[n_idx].copy(),
+                (n_idx == i).nonzero()[0][0],
+                wrap_time=wrap_time
+            )
+            for i, n_idx in _find_local(expr, neighbor_graph)
+        ]
     )
 
 

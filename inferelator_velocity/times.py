@@ -277,6 +277,36 @@ def calculate_times(
         'path': []
     }
 
+    # Find the distance to the splines connecting the centroids
+    # for every point
+    centroid_lookup = {
+        (start, end): (i, centroids[start], centroids[end])
+        for i, (start, (end, _, _)) in enumerate(cluster_order_dict.items())
+    }
+
+    dists = np.zeros((adata.shape[0], len(centroid_lookup)), dtype=float)
+    projs = np.zeros_like(dists)
+
+    for k, v in centroid_lookup.items():
+        dists[:, v[0]] = _array_distance_to_spline(
+            adata.obsm['X_pca'],
+            adata.obsm['X_pca'][v[1], :],
+            adata.obsm['X_pca'][v[2], :]
+        )
+
+        projs[:, v[0]] = scalar_projection(
+            adata.obsm['X_pca'],
+            v[1],
+            v[2],
+        )
+
+    # Add distances from the endpoints to
+    # to the spline distances
+    dists[projs < 0] -= projs[projs < 0]
+    dists[projs > 1] += projs[projs > 1] - 1
+
+    _spline_assign = dists.argmin(axis=1)
+
     # Iterate through paths between cluster centroids
     for i, (start, (end, l_time, r_time)) in enumerate(cluster_order_dict.items()):
 
@@ -288,8 +318,7 @@ def calculate_times(
 
         # Boolean index for the observations that are closest to the
         # line connecting these groups
-        _idx = _nearest_point_on_path >= _tp_centroids[start]
-        _idx &= _nearest_point_on_path <= _right_centroid
+        _idx = _spline_assign == centroid_lookup[(start, end)][0]
 
         vprint(
             f"Assigned times to {np.sum(_idx)} cells [{start} - {end}] "
@@ -299,11 +328,10 @@ def calculate_times(
 
         # Get scalar projection in the PC space
         # and scale to the time values
-        times[_idx] = scalar_projection(
-            adata.obsm['X_pca'],
-            centroids[start],
-            centroids[end],
-        )[_idx] * (r_time - l_time) + l_time
+        times[_idx] = projs[
+            _idx,
+            centroid_lookup[(start, end)][0]
+        ] * (r_time - l_time) + l_time
 
         # Append information about this path to lists in the dict
         # Line number for the closest observations
@@ -319,7 +347,7 @@ def calculate_times(
 
         # The path that connects the centroids
         group['path'].append(
-            _total_path[max(0, _tp_centroids[start] - 1):_right_centroid]
+            _total_path[_tp_centroids[start]:_right_centroid + 1]
         )
 
     # Only do verbose message math if needed
@@ -396,3 +424,28 @@ def _wrap_time(
     times[times < 0] = times[times < 0] + wrap_time
 
     return times
+
+
+def _array_distance_to_spline(x, c1, c2):
+    """
+    Get the distance to a spline defined by two points
+    (c1 and c2) for an array (x)
+
+    :param x: Array of N points in m-space
+    :type x: np.ndarray
+    :param c1: Vector in m-space defining the first point
+    :type c1: np.ndarray
+    :param c2: Vector in m-space defining the second point
+    :type c2: np.ndarray
+    :return: N Distances to the spline defined by c1 and c2
+    :rtype: np.ndarray
+    """
+
+    delta_c = c1 - c2
+
+    t = np.dot(x - c2[None, :], delta_c) / np.dot(delta_c, delta_c)
+
+    return np.linalg.norm(
+        t[:, None] * delta_c[None, :] + c2[None, :] - x,
+        axis=1
+    )

@@ -21,7 +21,9 @@ def order_dict_to_lists(order_dict):
         if start in _dll:
 
             if _dll[start][1] is not None:
-                raise ValueError(f"Both {_dll[start][1]} and {end} follow {start}")
+                raise ValueError(
+                    f"Both {_dll[start][1]} and {end} follow {start}"
+                )
 
             _dll[start] = (_dll[start][0], end)
 
@@ -32,7 +34,9 @@ def order_dict_to_lists(order_dict):
         if end in _dll:
 
             if _dll[end][0] is not None:
-                raise ValueError(f"Both {_dll[end][0]} and {start} precede {end}")
+                raise ValueError(
+                    f"Both {_dll[end][0]} and {start} precede {end}"
+                )
 
             _dll[end] = (start, _dll[end][1])
 
@@ -144,7 +148,12 @@ def get_bins(data, n_bins=None, centers=None, width=None):
         min_time, max_time = np.nanmin(data), np.nanmax(data)
 
         half_width = (max_time - min_time) / (2 * n_bins + 1)
-        centers = np.linspace(min_time + half_width, max_time - half_width, num=n_bins)
+
+        centers = np.linspace(
+            min_time + half_width,
+            max_time - half_width,
+            num=n_bins
+        )
 
     elif centers is not None and width is not None:
         half_width = width / 2

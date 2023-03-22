@@ -199,7 +199,7 @@ def calc_decay_bootstraps(
 def calc_decay(
     expression_data,
     velocity_data,
-    include_alpha=True,
+    include_alpha=False,
     decay_quantiles=DECAY_QUANT,
     alpha_quantile=ALPHA_QUANT,
     lstatus=True

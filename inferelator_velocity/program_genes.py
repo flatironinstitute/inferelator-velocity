@@ -36,16 +36,16 @@ def assign_genes_to_programs(
     :type programs: tuple, optional
     :param use_existing_programs: Program IDs to take from original
         calculation, when None will defaults to taking all programs (only
-        replacing -1), when False will replace all programs with,
+        replacing -1), when False will replace all programs with new programs,
         defaults to None
     :type use_existing_programs: list, None
     :param return_mi: Return Mutual Information matrix
     :type return_mi: bool
-    :param default_program: If set, use this program as a default for genes with
-        low mutual information to any times
+    :param default_program: If set, use this program as a default for genes
+        with low mutual information to any times
     :type default_program: str, None
-    :param default_threshold: If set, use this as a threshold for mutual information
-        to assign genes to default program
+    :param default_threshold: If set, use this as a threshold for mutual
+        information to assign genes to default program
     :type default_threshold: numeric
     :param n_bins: Number of bins for descretization of continuous data
     :type n_bins: int,
@@ -70,6 +70,32 @@ def assign_genes_to_programs(
         programs = [programs]
 
     programs = np.asarray(programs)
+
+    old_labels = data.var[PROGRAM_KEY]
+
+    if use_existing_programs is None:
+        _has_old = old_labels != "-1"
+
+    elif use_existing_programs is not False:
+        _has_old = old_labels.isin(use_existing_programs)
+
+    else:
+        _has_old = np.zeros_like(old_labels, dtype=bool)
+
+    if np.all(_has_old):
+
+        vprint(
+            "All genes annotated with existing labels to keep;"
+            f"{np.sum(_has_old)} existing program labels kept"
+            f"for programs {', '.join(programs)}",
+            verbose=verbose
+        )
+
+        if return_mi:
+            return old_labels, None
+
+        else:
+            return old_labels
 
     d = copy_count_layer(data, layer)
 
@@ -158,41 +184,30 @@ def assign_genes_to_programs(
 
         new_labels[np.max(mi, axis=1) < default_threshold] = default_program
 
+    new_labels[_has_old] = old_labels[_has_old]
     _labels, _counts = np.unique(new_labels, return_counts=True)
-
-    old_labels = data.var[PROGRAM_KEY]
-
-    if use_existing_programs is None:
-        _has_old = old_labels != "-1"
-        new_labels[_has_old] = old_labels[_has_old]
-
-    elif use_existing_programs is not False:
-        _has_old = old_labels.isin(use_existing_programs)
-        new_labels[_has_old] = old_labels[_has_old]
-
-    else:
-        _has_old = np.zeros_like(old_labels, dtype=bool)
 
     __old_labels, _old_counts = np.unique(
         new_labels[_has_old],
         return_counts=True
     )
 
-    vprint(
-        f"{np.sum(_has_old)} existing program labels kept",
-        ", ".join(
-            [f"Program {p}: {q} genes"
-             for p, q in zip(__old_labels, _old_counts)]
-        ),
-        verbose=verbose
-    )
+    if np.sum(_has_old) > 0:
+        vprint(
+            f"{np.sum(_has_old)} existing program labels kept",
+            ", ".join([
+                f"Program {p}: {q} genes"
+                for p, q in zip(__old_labels, _old_counts)
+            ]),
+            verbose=verbose
+        )
 
     vprint(
         "Genes assigned to programs: ",
-        ", ".join(
-            [f"Program {p}: {q} genes"
-             for p, q in zip(_labels, _counts)]
-        ),
+        ", ".join([
+            f"Program {p}: {q} genes"
+            for p, q in zip(_labels, _counts)
+        ]),
         verbose=verbose
     )
 

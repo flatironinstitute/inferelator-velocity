@@ -51,8 +51,8 @@ def program_select(
     random_state=50,
 ):
     """
-    Find a specific number of gene programs based on information distance between genes.
-    Use raw counts as input.
+    Find a specific number of gene programs based on information distance
+    between genes. Use raw counts as input.
 
     :param data: AnnData expression data object
     :type data: ad.AnnData
@@ -106,11 +106,11 @@ def program_select(
     :rtype: AnnData object
     """
 
-    #### CREATE A NEW DATA OBJECT FOR THIS ANALYSIS ####
+    # CREATE A NEW DATA OBJECT FOR THIS ANALYSIS #
 
     d = copy_count_layer(data, layer)
 
-    #### PREPROCESSING / NORMALIZATION ####
+    # PREPROCESSING / NORMALIZATION #
 
     if normalize:
         standardize_data(d)
@@ -131,8 +131,7 @@ def program_select(
             verbose=verbose
         )
 
-
-    #### PCA / COMPONENT SELECTION BY MOLECULAR CROSSVALIDATION ####
+    # PCA / COMPONENT SELECTION BY MOLECULAR CROSSVALIDATION #
     if n_comps is None:
 
         if mcv_loss_arr is None:
@@ -154,7 +153,7 @@ def program_select(
     # Rotate back to expression space
     pca_expr = d.obsm['X_pca'] @ d.varm['PCs'].T
 
-    #### CALCULATING MUTUAL INFORMATION & GENE CLUSTERING ####
+    # CALCULATING MUTUAL INFORMATION & GENE CLUSTERING #
 
     if metric != 'information':
         vprint(
@@ -184,7 +183,7 @@ def program_select(
         verbose=verbose
     )
 
-    ### k-NN & LEIDEN - 2 <= N_GENES / 100 <= 100 neighbors
+    # k-NN & LEIDEN - 2 <= N_GENES / 100 <= 100 neighbors
     d.var['leiden'] = _leiden_cluster(
         dists,
         min(100, max(int(dists.shape[0] / 100), 2)),
@@ -206,7 +205,7 @@ def program_select(
             return_var_explained=False
         ).ravel()
 
-    #### SECOND ROUND OF CLUSTERING TO MERGE GENE CLUSTERS INTO PROGRAMS ####
+    # SECOND ROUND OF CLUSTERING TO MERGE GENE CLUSTERS INTO PROGRAMS #
 
     # Spearman rho for the first PC for each cluster
     _rho_pc1 = np.abs(spearmanr(_cluster_pc1))[0]
@@ -236,13 +235,13 @@ def program_select(
 
     d.var[PROGRAM_KEY] = d.var['leiden'].astype(str).map(clust_map)
 
-    #### LOAD FINAL DATA INTO INITIAL DATA OBJECT AND RETURN IT ####
+    # LOAD FINAL DATA INTO INITIAL DATA OBJECT AND RETURN IT #
 
     data.var['leiden'] = str(-1)
     data.var.loc[d.var_names, 'leiden'] = d.var['leiden'].astype(str)
     data.var[PROGRAM_KEY] = data.var['leiden'].map(clust_map)
 
-    #### ADD RESULTS OBJECT TO UNS ####
+    # ADD RESULTS OBJECT TO UNS #
 
     data.uns[PROGRAM_KEY] = {
         METRIC_SUBKEY: metric,

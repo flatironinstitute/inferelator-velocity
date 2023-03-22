@@ -22,6 +22,7 @@ EXPR = np.dot(np.arange(N).reshape(-1, 1), np.arange(4).reshape(1, -1))
 EXPR += (5 * np.random.default_rng(222222).random((N, 4))).astype(int)
 LAB = np.array(['a'] * 3 + ['b'] * 3 + ['c'] * 4)
 
+
 class TestTimeEsts(unittest.TestCase):
 
     def test_times(self):
@@ -33,6 +34,9 @@ class TestTimeEsts(unittest.TestCase):
             n_neighbors=4,
             verbose=True
         )
+
+        print(EXPR)
+        print(LAB)
 
         self.assertListEqual(
             [0, 0.5, 1.],

@@ -90,11 +90,15 @@ def get_total_path(shortest_paths, centroid_order_dict, centroid_order_list):
     total_path_centroids = {}
 
     # Path goes from left to right node
-    for i, (start_label, (end_label, _, _)) in enumerate(centroid_order_dict.items()):
+    for i, (start_label, (end_label, _, _)) in enumerate(
+        centroid_order_dict.items()
+    ):
 
         # Get the shortest path that starts at left and ends at right
-        _link_path = shortest_paths[[start_label == x for x in centroid_order_list],
-                                    [end_label == x for x in centroid_order_list]][0]
+        _link_path = shortest_paths[
+            [start_label == x for x in centroid_order_list],
+            [end_label == x for x in centroid_order_list]
+        ][0]
 
         # Set the position of the key node on the total path
         total_path_centroids[start_label] = max(len(total_path) - 1, 0)
@@ -104,6 +108,7 @@ def get_total_path(shortest_paths, centroid_order_dict, centroid_order_list):
             total_path_centroids[end_label] = len(total_path) - 1
 
     return total_path, total_path_centroids
+
 
 def local_optimal_knn(
     neighbor_graph,
@@ -226,7 +231,7 @@ def set_diag(X, diag):
         pass
 
     elif _is_sparse(X):
-        ### UGLY HACK TO AVOID SPARSITY CHANGES ###
+        # UGLY HACK TO AVOID SPARSITY CHANGES #
         _remove_diag = X.diagonal()
 
         if np.all(_remove_diag == 0.):
