@@ -8,7 +8,7 @@ install_requires = [
     "scanpy",
     "scipy",
     "joblib",
-    "sklearn",
+    "scikit-learn",
     "tqdm",
     "sparse_dot_mkl"
 ]
@@ -21,8 +21,15 @@ tests_require = [
 version = "0.2.0"
 
 # Description from README.md
-base_dir = os.path.dirname(os.path.abspath(__file__))
-long_description = "\n\n".join([open(os.path.join(base_dir, "README.md"), "r").read()])
+long_description = "\n\n".join(
+    [open(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "README.md"
+        ),
+        "r"
+    ).read()]
+)
 
 setup(
     name="inferelator_velocity",
@@ -35,7 +42,10 @@ setup(
     author_email="cj59@nyu.edu",
     maintainer="Chris Jackson",
     maintainer_email="cj59@nyu.edu",
-    packages=find_packages(include=["inferelator_velocity", "inferelator_velocity.*"]),
+    packages=find_packages(include=[
+        "inferelator_velocity",
+        "inferelator_velocity.*"
+    ]),
     zip_safe=False,
     install_requires=install_requires,
     tests_require=tests_require,
