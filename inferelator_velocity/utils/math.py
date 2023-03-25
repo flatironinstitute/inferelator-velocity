@@ -3,7 +3,14 @@ import scipy.sparse as sps
 from .misc import make_vector_2D
 
 
-def scalar_projection(data, center_point, off_point, normalize=True, weights=None):
+def scalar_projection(
+        data,
+        center_point,
+        off_point,
+        normalize=True,
+        weights=None,
+        endpoint_distance=False
+):
     """
     Scalar projection of data onto a line defined by two points
 
@@ -18,6 +25,9 @@ def scalar_projection(data, center_point, off_point, normalize=True, weights=Non
     :type normalize: bool, optional
     :param weights: How much weight to put on each dimension, defaults to None
     :type weights: np.ndarray, optional
+    :param endpoint_distance: Set distance for projection between the
+        endpoints to zero
+    :type endpoint_distance: bool
     :return: Scalar projection array
     :rtype: np.ndarray
     """
@@ -36,16 +46,27 @@ def scalar_projection(data, center_point, off_point, normalize=True, weights=Non
     if normalize:
         scalar_proj = scalar_proj / np.linalg.norm(vec)
 
+    if endpoint_distance:
+        _past_center = scalar_proj >= 0
+        _past_offpoint = scalar_proj > scalar_proj[off_point]
+        scalar_proj[_past_center & _past_offpoint] -= scalar_proj[off_point]
+        scalar_proj[_past_center & ~_past_offpoint] = 0
+
     return scalar_proj
 
 
 def get_centroids(comps, cluster_vector):
-    return {k: _get_centroid(comps[cluster_vector == k, :])
-            for k in np.unique(cluster_vector)}
+    return {
+        k: _get_centroid(comps[cluster_vector == k, :])
+        for k in np.unique(cluster_vector)
+    }
 
 
 def _get_centroid(comps):
-    return np.sum((comps - np.mean(comps, axis=0)[None, :]) ** 2, axis=1).argmin()
+    return np.sum(
+        (comps - np.mean(comps, axis=0)[None, :]) ** 2,
+        axis=1
+    ).argmin()
 
 
 def least_squares(x, y):

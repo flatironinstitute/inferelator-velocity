@@ -30,8 +30,6 @@ from .utils.keys import (
     ASSIGNMENT_PATH_SUBKEY
 )
 
-from scipy.sparse.csgraph import shortest_path
-
 
 def program_times(
     data,
@@ -106,31 +104,31 @@ def program_times(
 
         if np.sum(_var_idx) == 0:
             data.obs[_obsk] = np.nan
+            return data
 
-        else:
-            lref = data.X if layer == "X" else data.layers[layer]
+        lref = data.X if layer == "X" else data.layers[layer]
 
-            data.obs[_obsk], data.obsm[_obsmk], data.uns[_obsmk] = calculate_times(
-                lref[:, _var_idx],
-                _cluster_labels,
-                cluster_order_dict[prog],
-                return_components=True,
-                verbose=verbose,
-                n_comps=n_comps if n_comps is None else n_comps[prog]
-            )
+        data.obs[_obsk], data.obsm[_obsmk], data.uns[_obsmk] = calculate_times(
+            lref[:, _var_idx],
+            _cluster_labels,
+            cluster_order_dict[prog],
+            return_components=True,
+            verbose=verbose,
+            n_comps=n_comps if n_comps is None else n_comps[prog]
+        )
 
-            # Add keys to the .uns object
-            data.uns[_obsmk]['obs_time_key'] = _obsk
-            data.uns[_obsmk]['obs_group_key'] = cluster_obs_key_dict[prog]
-            data.uns[_obsmk]['obsm_key'] = _obsmk
+        # Add keys to the .uns object
+        data.uns[_obsmk]['obs_time_key'] = _obsk
+        data.uns[_obsmk]['obs_group_key'] = cluster_obs_key_dict[prog]
+        data.uns[_obsmk]['obsm_key'] = _obsmk
 
-            # Put the cluster information into the .uns object
-            _cluster_order, _cluster_times = order_dict_to_lists(
-                cluster_order_dict[prog]
-            )
+        # Put the cluster information into the .uns object
+        _cluster_order, _cluster_times = order_dict_to_lists(
+            cluster_order_dict[prog]
+        )
 
-            data.uns[_obsmk][CLUSTER_ORDER_SUBKEY] = _cluster_order
-            data.uns[_obsmk][CLUSTER_TIME_SUBKEY] = _cluster_times
+        data.uns[_obsmk][CLUSTER_ORDER_SUBKEY] = _cluster_order
+        data.uns[_obsmk][CLUSTER_TIME_SUBKEY] = _cluster_times
 
     return data
 
@@ -255,16 +253,6 @@ def calculate_times(
         verbose=verbose
     )
 
-    # Find the nearest points on the shortest path line for every point
-    # As numeric position on _total_path
-    _nearest_point_on_path = shortest_path(
-        adata.obsp['distances'],
-        directed=False,
-        indices=_total_path,
-        return_predecessors=False,
-        method=graph_method
-    ).argmin(axis=0)
-
     # Scalar projections onto centroid-centroid vector
     times = np.full(n, np.nan, dtype=float)
 
@@ -285,30 +273,32 @@ def calculate_times(
     }
 
     dists = np.zeros((adata.shape[0], len(centroid_lookup)), dtype=float)
-    projs = np.zeros_like(dists)
 
+    # Get the l2 norm between orthogonal distance to the spline
+    # and projection distance from the endpoints of the spline
     for k, v in centroid_lookup.items():
-        dists[:, v[0]] = _array_distance_to_spline(
-            adata.obsm['X_pca'],
-            adata.obsm['X_pca'][v[1], :],
-            adata.obsm['X_pca'][v[2], :]
+        dists[:, v[0]] = np.sqrt(
+            _array_distance_to_spline(
+                adata.obsm['X_pca'],
+                adata.obsm['X_pca'][v[1], :],
+                adata.obsm['X_pca'][v[2], :]
+            ) ** 2 + scalar_projection(
+                adata.obsm['X_pca'],
+                v[1],
+                v[2],
+                normalize=False,
+                endpoint_distance=True
+            ) ** 2
         )
-
-        projs[:, v[0]] = scalar_projection(
-            adata.obsm['X_pca'],
-            v[1],
-            v[2],
-        )
-
-    # Add distances from the endpoints to
-    # to the spline distances
-    dists[projs < 0] -= projs[projs < 0]
-    dists[projs > 1] += projs[projs > 1] - 1
 
     _spline_assign = dists.argmin(axis=1)
 
+    del dists
+
     # Iterate through paths between cluster centroids
-    for i, (start, (end, l_time, r_time)) in enumerate(cluster_order_dict.items()):
+    for i, (start, (end, l_time, r_time)) in enumerate(
+        cluster_order_dict.items()
+    ):
 
         # Wrap the centroids if needed
         if _tp_centroids[end] == 0:
@@ -328,10 +318,11 @@ def calculate_times(
 
         # Get scalar projection in the PC space
         # and scale to the time values
-        times[_idx] = projs[
-            _idx,
-            centroid_lookup[(start, end)][0]
-        ] * (r_time - l_time) + l_time
+        times[_idx] = scalar_projection(
+            adata.obsm['X_pca'],
+            centroids[start],
+            centroids[end],
+        )[_idx] * (r_time - l_time) + l_time
 
         # Append information about this path to lists in the dict
         # Line number for the closest observations
