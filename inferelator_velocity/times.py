@@ -3,6 +3,8 @@ import scanpy as sc
 import numpy as np
 import warnings
 
+from scipy.sparse.csgraph import shortest_path
+
 from .utils.graph import get_shortest_paths, get_total_path
 from .utils.math import scalar_projection, get_centroids
 from .utils.mcv import mcv_pcs
@@ -265,6 +267,16 @@ def calculate_times(
         'path': []
     }
 
+    # Find the nearest points on the shortest path line for every point
+    # As numeric position on _total_path
+    _nearest_point_on_path = shortest_path(
+        adata.obsp['distances'],
+        directed=False,
+        indices=_total_path,
+        return_predecessors=False,
+        method=graph_method
+    ).argmin(axis=0)
+
     # Find the distance to the splines connecting the centroids
     # for every point
     centroid_lookup = {
@@ -307,8 +319,17 @@ def calculate_times(
             _right_centroid = _tp_centroids[end]
 
         # Boolean index for the observations that are closest to the
-        # line connecting these groups
-        _idx = _spline_assign == centroid_lookup[(start, end)][0]
+        # shortest path connecting these centroids
+        _idx = _nearest_point_on_path > _tp_centroids[start]
+        _idx &= _nearest_point_on_path < _right_centroid
+
+        # But for things closest to the centroids themselves, use the
+        # spline distance (which spline the observation is closest to)
+        _centroid_idx = _nearest_point_on_path == _tp_centroids[start]
+        _centroid_idx |= _nearest_point_on_path == _right_centroid
+        _centroid_idx &= _spline_assign == centroid_lookup[(start, end)][0]
+
+        _idx |= _centroid_idx
 
         vprint(
             f"Assigned times to {np.sum(_idx)} cells [{start} - {end}] "
