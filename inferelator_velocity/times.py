@@ -37,6 +37,7 @@ def program_times(
     data,
     cluster_obs_key_dict,
     cluster_order_dict,
+    wrap_time=None,
     layer="X",
     program_var_key=PROGRAM_KEY,
     programs=('0', '1'),
@@ -116,7 +117,8 @@ def program_times(
             cluster_order_dict[prog],
             return_components=True,
             verbose=verbose,
-            n_comps=n_comps if n_comps is None else n_comps[prog]
+            n_comps=n_comps if n_comps is None else n_comps[prog],
+            wrap_time=wrap_time[prog] if wrap_time is not None else None
         )
 
         # Add keys to the .uns object
@@ -139,6 +141,7 @@ def calculate_times(
     count_data,
     cluster_vector,
     cluster_order_dict,
+    wrap_time=None,
     n_neighbors=10,
     n_comps=None,
     graph_method="D",
@@ -277,27 +280,57 @@ def calculate_times(
         method=graph_method
     ).argmin(axis=0)
 
-    # Find the distance to the splines connecting the centroids
-    # for every point
+    # Make a lookup dict to find splines that are connected to
+    # specific centroids
     centroid_lookup = {
+        centroid: [
+            i
+            for i, (start, (end, _, _))
+            in enumerate(cluster_order_dict.items())
+            if (start == centroid) or (end == centroid)
+        ]
+        for centroid in _tp_centroids.keys()
+    }
+
+    print(centroid_lookup)
+
+    # Generate times for all observations against all splines
+    all_times = np.hstack([
+        _time_projection(
+            adata.obsm['X_pca'],
+            centroids[start],
+            centroids[end],
+            l_time,
+            r_time,
+            wrap_time=wrap_time
+        ).reshape(-1, 1)
+        for start, (end, l_time, r_time) in cluster_order_dict.items()
+    ])
+
+    # Build a lookup table for each spline
+    spline_lookup = {
         (start, end): (i, centroids[start], centroids[end])
         for i, (start, (end, _, _)) in enumerate(cluster_order_dict.items())
     }
 
-    dists = np.zeros((adata.shape[0], len(centroid_lookup)), dtype=float)
+    dists = np.full(
+        (adata.shape[0], len(spline_lookup)),
+        np.nan,
+        dtype=float
+    )
 
     # Get the l2 norm between orthogonal distance to the spline
     # and projection distance from the endpoints of the spline
-    for k, v in centroid_lookup.items():
-        dists[:, v[0]] = np.sqrt(
+    for i, start, end in spline_lookup.values():
+        dists[:, i] = np.sqrt(
             _array_distance_to_spline(
                 adata.obsm['X_pca'],
-                adata.obsm['X_pca'][v[1], :],
-                adata.obsm['X_pca'][v[2], :]
+                adata.obsm['X_pca'][start, :],
+                adata.obsm['X_pca'][end, :]
             ) ** 2 + scalar_projection(
                 adata.obsm['X_pca'],
-                v[1],
-                v[2],
+                start,
+                end,
                 normalize=False,
                 endpoint_distance=True
             ) ** 2
@@ -308,9 +341,7 @@ def calculate_times(
     del dists
 
     # Iterate through paths between cluster centroids
-    for i, (start, (end, l_time, r_time)) in enumerate(
-        cluster_order_dict.items()
-    ):
+    for i, (start, (end, _, _)) in enumerate(cluster_order_dict.items()):
 
         # Wrap the centroids if needed
         if _tp_centroids[end] == 0:
@@ -323,27 +354,38 @@ def calculate_times(
         _idx = _nearest_point_on_path > _tp_centroids[start]
         _idx &= _nearest_point_on_path < _right_centroid
 
-        # But for things closest to the centroids themselves, use the
-        # spline distance (which spline the observation is closest to)
-        _centroid_idx = _nearest_point_on_path == _tp_centroids[start]
-        _centroid_idx |= _nearest_point_on_path == _right_centroid
-        _centroid_idx &= _spline_assign == centroid_lookup[(start, end)][0]
+        # Assign time values to observations that are
+        # associated with only one spline
+        times[_idx] = all_times[_idx, i]
 
-        _idx |= _centroid_idx
+        # But for things closest to the centroids themselves,
+        # average the values for splines that join at that centroid
+        for c in [start, end]:
+            _centroid_idx = _nearest_point_on_path == _tp_centroids[c]
+
+            times[_centroid_idx] = _wrap_mean(
+                    all_times[:, centroid_lookup[c]],
+                    wrap_time,
+                    axis=1
+            )[_centroid_idx]
+
+            # Find the spline that these points are closest to
+            # For plotting purposes later
+            # If this is an endpoint, use all values attached to the centroid,
+            # otherwise find the values closest by spline distance
+            _associated_spline = np.array(centroid_lookup[c])
+
+            if len(_associated_spline) > 1:
+                _spline_idx = _associated_spline[_associated_spline != i]
+                _centroid_idx &= _spline_assign == _spline_idx
+
+            _idx |= _centroid_idx
 
         vprint(
             f"Assigned times to {np.sum(_idx)} cells [{start} - {end}] "
             f"conected by {_right_centroid - _tp_centroids[start]} points",
             verbose=verbose
         )
-
-        # Get scalar projection in the PC space
-        # and scale to the time values
-        times[_idx] = scalar_projection(
-            adata.obsm['X_pca'],
-            centroids[start],
-            centroids[end],
-        )[_idx] * (r_time - l_time) + l_time
 
         # Append information about this path to lists in the dict
         # Line number for the closest observations
@@ -424,6 +466,45 @@ def wrap_times(
     return data
 
 
+def _time_projection(
+        x,
+        start_position,
+        end_position,
+        start_time,
+        end_time,
+        wrap_time=None
+):
+    """
+    Project data onto scalar and standardize to time anchors
+
+    :param x: Data
+    :type x: np.ndarray
+    :param start_position: Row in data of spline start
+    :type start_position: int
+    :param end_position: Row in data of spline end
+    :type end_position: int
+    :param start_time: Time value at the spline start
+    :type start_time: float
+    :param end_time: Time value at the spline end
+    :type end_time: float
+    :param wrap_time: Wrapping time, defaults to None
+    :type wrap_time: float, optional
+    :return: Time vector
+    :rtype: np.ndarray
+    """
+
+    time = scalar_projection(
+        x,
+        start_position,
+        end_position,
+    ) * (end_time - start_time) + end_time
+
+    if wrap_time is not None:
+        time = _wrap_time(time, wrap_time)
+
+    return time
+
+
 def _wrap_time(
     times,
     wrap_time
@@ -436,6 +517,26 @@ def _wrap_time(
     times[times < 0] = times[times < 0] + wrap_time
 
     return times
+
+
+def _wrap_mean(
+    times,
+    wrap_time,
+    axis=1
+):
+    if wrap_time is None:
+        return times.mean(axis=axis)
+
+    t_diff = np.abs(np.diff(times, axis=axis)).ravel()
+
+    _wrap_diff = t_diff > (wrap_time / 2)
+
+    t_mean = np.min(times, axis=axis)
+
+    t_mean[~_wrap_diff] += t_diff[~_wrap_diff] / 2
+    t_mean[_wrap_diff] -= (wrap_time - t_diff[_wrap_diff]) / 2
+
+    return _wrap_time(t_mean, wrap_time)
 
 
 def _array_distance_to_spline(x, c1, c2):
