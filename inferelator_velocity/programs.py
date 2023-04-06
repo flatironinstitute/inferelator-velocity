@@ -18,7 +18,8 @@ from .utils.mcv import mcv_pcs
 from .utils import (
     vprint,
     copy_count_layer,
-    variance
+    variance,
+    standardize_data
 )
 from .metrics import (
     information_distance,
@@ -116,10 +117,19 @@ def program_select(
     # PREPROCESSING / NORMALIZATION #
 
     if normalize:
-        sc.pp.normalize_per_cell(d, min_counts=0)
+        standardize_data(d)
 
     if filter_to_hvg:
 
+        # Use seurat-type HVG
+        sc.pp.highly_variable_genes(
+            d,
+            max_mean=np.inf,
+            min_disp=0.01
+        )
+
+        # But also make sure high-variance genes aren't
+        # getting excluded
         d.var['variance'] = variance(
             d.X,
             axis=0
@@ -129,7 +139,8 @@ def program_select(
             d.var['variance'].values.reshape(-1, 1)
         ).ravel()
 
-        d.var['highly_variable'] = d.var['variance_norm'] > 0
+        d.var['highly_variable'] |= d.var['variance_norm'] > 2
+
         d._inplace_subset_var(d.var['highly_variable'].values)
 
         vprint(
@@ -143,9 +154,6 @@ def program_select(
             f"Normalized and kept {d.shape[1]} expressed genes",
             verbose=verbose
         )
-
-    if normalize:
-        sc.pp.log1p(d)
 
     # PCA / COMPONENT SELECTION BY MOLECULAR CROSSVALIDATION #
     if n_comps is None:
