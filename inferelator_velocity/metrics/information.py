@@ -31,8 +31,8 @@ def information_distance(
     :param logtype: Log function to use for information calculations,
         defaults to np.log
     :type logtype: func, optional
-    :param return_information: Return mutual information in addition to distance,
-        defaults to False
+    :param return_information: Return mutual information in addition to
+        distance, defaults to False
     :type return_information: bool, optional
     :return: Information distance D(X, X) array [Features x Features],
         and MI(X, X) array [Features x Features] if return_information is True
