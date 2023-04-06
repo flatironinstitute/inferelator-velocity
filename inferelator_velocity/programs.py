@@ -246,9 +246,7 @@ def program_select(
 
         # Merge clusters based on correlation distance (1 - abs(spearman rho))
         clust_2 = AgglomerativeClustering(
-            n_clusters=n_programs,
-            affinity='precomputed',
-            linkage='complete'
+            n_clusters=n_programs
         ).fit_predict(1 - _rho_pc1)
 
     else:
