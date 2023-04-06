@@ -88,7 +88,10 @@ def knn_noise2self(
 
     mses = np.zeros((len(npcs), len(neighbors)))
 
-    expr_data = data_obj.X if use_sparse or not sps.issparse(data_obj.X) else data_obj.X.A
+    if use_sparse or not sps.issparse(data_obj.X):
+        expr_data = data_obj.X
+    else:
+        expr_data = data_obj.X.A
 
     # Create a progress bar
     tqdm_pbar = tqdm.tqdm(

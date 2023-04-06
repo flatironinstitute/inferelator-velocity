@@ -2,7 +2,10 @@ import unittest
 
 import numpy as np
 
-from inferelator_velocity.times import (program_times, calculate_times)
+from inferelator_velocity.times import (
+    program_times,
+    calculate_times
+)
 
 N = 10
 
@@ -42,3 +45,9 @@ class TestTimeEsts(unittest.TestCase):
             [0, 0.5, 1.],
             [times[v] for k, v in {'a': 2, 'b': 5, 'c': 9}.items()]
         )
+
+
+class TestTimeFunctions(unittest.TestCase):
+
+    def test_wrap_time(self):
+        pass

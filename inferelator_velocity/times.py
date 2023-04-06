@@ -292,8 +292,6 @@ def calculate_times(
         for centroid in _tp_centroids.keys()
     }
 
-    print(centroid_lookup)
-    print(cluster_order_dict)
     # Generate times for all observations against all splines
     all_times = np.hstack([
         _time_projection(
@@ -306,7 +304,7 @@ def calculate_times(
         ).reshape(-1, 1)
         for start, (end, l_time, r_time) in cluster_order_dict.items()
     ])
-    print(all_times)
+
     # Build a lookup table for each spline
     spline_lookup = {
         (start, end): (i, centroids[start], centroids[end])

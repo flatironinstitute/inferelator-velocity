@@ -9,7 +9,6 @@ from scanpy.neighbors import (
 )
 
 from sklearn.cluster import AgglomerativeClustering
-from scipy.stats import spearmanr
 from sklearn.metrics import pairwise_distances
 
 from inferelator.regression.mi import _make_array_discrete
@@ -20,7 +19,10 @@ from .utils import (
     copy_count_layer,
     standardize_data
 )
-from .metrics import information_distance
+from .metrics import (
+    information_distance,
+    circular_rank_correlation
+)
 
 from .utils.keys import (
     N_BINS,
@@ -208,7 +210,7 @@ def program_select(
     # SECOND ROUND OF CLUSTERING TO MERGE GENE CLUSTERS INTO PROGRAMS #
 
     # Spearman rho for the first PC for each cluster
-    _rho_pc1 = np.abs(spearmanr(_cluster_pc1))[0]
+    _rho_pc1 = np.abs(circular_rank_correlation(_cluster_pc1))
 
     if _n_l_clusts > n_programs:
         vprint(
