@@ -8,6 +8,7 @@ from scanpy.neighbors import (
     _compute_connectivities_umap
 )
 
+from sklearn.preprocessing import RobustScaler
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import pairwise_distances
 
@@ -17,7 +18,7 @@ from .utils.mcv import mcv_pcs
 from .utils import (
     vprint,
     copy_count_layer,
-    standardize_data
+    variance
 )
 from .metrics import (
     information_distance,
@@ -115,14 +116,24 @@ def program_select(
     # PREPROCESSING / NORMALIZATION #
 
     if normalize:
-        standardize_data(d)
+        sc.pp.normalize_per_cell(d, min_counts=0)
 
     if filter_to_hvg:
-        sc.pp.highly_variable_genes(d, max_mean=np.inf, min_disp=0.01)
+
+        d.var['variance'] = variance(
+            d.X,
+            axis=0
+        )
+
+        d.var['variance_norm'] = RobustScaler().fit_transform(
+            d.var['variance'].values.reshape(-1, 1)
+        ).ravel()
+
+        d.var['highly_variable'] = d.var['variance_norm'] > 0
         d._inplace_subset_var(d.var['highly_variable'].values)
 
         vprint(
-            f"Normalized and kept {d.shape[1]} highly variable genes",
+            f"Normalized and kept {d.shape[1]} high variance genes",
             verbose=verbose
         )
     else:
@@ -132,6 +143,9 @@ def program_select(
             f"Normalized and kept {d.shape[1]} expressed genes",
             verbose=verbose
         )
+
+    if normalize:
+        sc.pp.log1p(d)
 
     # PCA / COMPONENT SELECTION BY MOLECULAR CROSSVALIDATION #
     if n_comps is None:
@@ -210,7 +224,11 @@ def program_select(
     # SECOND ROUND OF CLUSTERING TO MERGE GENE CLUSTERS INTO PROGRAMS #
 
     # Spearman rho for the first PC for each cluster
-    _rho_pc1 = np.abs(circular_rank_correlation(_cluster_pc1))
+    _rho_pc1 = np.abs(
+        circular_rank_correlation(
+            _cluster_pc1
+        )
+    )
 
     if _n_l_clusts > n_programs:
         vprint(

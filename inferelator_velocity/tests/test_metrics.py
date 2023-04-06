@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import numpy.testing as npt
+from scipy.stats import spearmanr
 
 from inferelator_velocity.metrics.circcorrcoef import (
     _rank_vector,
@@ -87,3 +88,15 @@ class TestCircCorrCoef(unittest.TestCase):
                 [-1, 0, 1, 1]
             ])
         )
+
+        # Double check that spearman's not doing the same
+        with self.assertRaises(AssertionError):
+            npt.assert_array_almost_equal(
+                spearmanr(self.arr)[0],
+                np.array([
+                    [1, 0, -1, -1],
+                    [0, 1, 0, 0],
+                    [-1, 0, 1, 1],
+                    [-1, 0, 1, 1]
+                ])
+            )

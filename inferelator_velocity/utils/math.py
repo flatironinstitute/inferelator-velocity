@@ -159,3 +159,96 @@ def mean_squared_error(x, y=None, by_row=False):
 
     else:
         return np.sum(ssr) / x.size
+
+
+def variance(
+    X,
+    axis=None,
+    ddof=0
+):
+    """
+    Function to calculate variance for sparse or dense arrays
+
+    :param X: Sparse or dense data array
+    :type X: np.ndarray, sp.spmatrix
+    :param axis: Across which axis (None flattens),
+        defaults to None
+    :type axis: int, optional
+    :param ddof: Delta degrees of freedom,
+        defaults to 0
+    :type ddof: int, optional
+    :return: Variance or vector of variances across an axis
+    :rtype: numeric, np.ndarray
+    """
+
+    if sps.issparse(X):
+
+        _n = np.prod(X.shape)
+
+        if axis is None:
+            _mean = X.mean()
+            _nz = _n - X.size
+
+            _var = np.sum(np.power(X.data - _mean, 2))
+            _var += np.power(_mean, 2) * _nz
+
+            return _var / (_n - ddof)
+
+        else:
+            _mean = X.mean(axis=axis).A1
+            _nz = -1 * X.getnnz(axis=axis) + X.shape[axis]
+
+            # Make a sparse mask of means over axis
+            _mean_mask = sps.csr_matrix(
+                ((np.ones(X.data.shape, dtype=float), X.indices, X.indptr))
+            )
+
+            if axis == 0:
+                _mean_mask = _mean_mask.multiply(_mean[np.newaxis, :])
+            else:
+                _mean_mask = _mean_mask.multiply(_mean[:, np.newaxis])
+
+            _var = (X - _mean_mask).power(2).sum(axis=axis).A1
+            _var += np.power(_mean, 2) * _nz
+
+        return _var / (X.shape[axis] - ddof)
+
+    else:
+
+        return np.var(X, axis=axis, ddof=ddof)
+
+
+def coefficient_of_variation(
+    X,
+    axis=None,
+    ddof=0
+):
+    """
+    Calculate coefficient of variation
+
+    :param X: Sparse or dense data array
+    :type X: np.ndarray, sp.spmatrix
+    :param axis: Across which axis (None flattens),
+        defaults to None
+    :type axis: int, optional
+    :param ddof: Delta degrees of freedom,
+        defaults to 0
+    :type ddof: int, optional
+    :return: CV or vector of CVs across an axis
+    :rtype: numeric, np.ndarray
+    """
+
+    _var = variance(X, axis=axis, ddof=ddof)
+    _mean = X.mean(axis=axis)
+
+    try:
+        _mean = _mean.A1
+    except AttributeError:
+        pass
+
+    return np.divide(
+        np.sqrt(_var),
+        _mean,
+        out=np.zeros_like(_var),
+        where=_mean != 0
+    )

@@ -4,7 +4,12 @@ import numpy as np
 import numpy.testing as npt
 import scipy.sparse as sps
 
-from inferelator_velocity.utils.math import (scalar_projection, mean_squared_error)
+from inferelator_velocity.utils.math import (
+    scalar_projection,
+    mean_squared_error,
+    variance,
+    coefficient_of_variation
+)
 
 
 N = 1000
@@ -27,7 +32,12 @@ class TestScalarProjections(unittest.TestCase):
 
         sl = np.sqrt(np.sum(np.square(DATA), axis=1))
 
-        sp = scalar_projection(DATA, center_point=0, off_point=N - 1, normalize=False)
+        sp = scalar_projection(
+            DATA,
+            center_point=0,
+            off_point=N - 1,
+            normalize=False
+        )
 
         npt.assert_array_almost_equal(sp, sl)
 
@@ -36,7 +46,12 @@ class TestScalarProjections(unittest.TestCase):
         sl = np.sqrt(np.sum(np.square(DATA), axis=1))
         sl = sl / sl.max()
 
-        sp = scalar_projection(DATA, center_point=0, off_point=N - 1, normalize=True)
+        sp = scalar_projection(
+            DATA,
+            center_point=0,
+            off_point=N - 1,
+            normalize=True
+        )
 
         npt.assert_array_almost_equal(sp, sl)
 
@@ -140,4 +155,68 @@ class TestMSE(unittest.TestCase):
         npt.assert_array_almost_equal(
             mean_squared_error(X, Y, by_row=True),
             self.Z_row
+        )
+
+
+class TestVariance(unittest.TestCase):
+
+    def setUp(self) -> None:
+
+        self.arr = np.random.rand(50, 5)
+        self.arr[self.arr < 0.5] = 0
+
+        self.sarr = sps.csr_matrix(self.arr)
+        return super().setUp()
+
+    def test_flattened(self):
+
+        npt.assert_almost_equal(
+            variance(self.arr),
+            variance(self.sarr)
+        )
+
+    def test_axis_0(self):
+
+        npt.assert_almost_equal(
+            variance(self.arr, axis=0),
+            variance(self.sarr, axis=0)
+        )
+
+    def test_axis_1(self):
+
+        npt.assert_almost_equal(
+            variance(self.arr, axis=1),
+            variance(self.sarr, axis=1)
+        )
+
+
+class TestCV(unittest.TestCase):
+
+    def setUp(self) -> None:
+
+        self.arr = np.random.rand(50, 5)
+        self.arr[self.arr < 0.5] = 0
+
+        self.sarr = sps.csr_matrix(self.arr)
+        return super().setUp()
+
+    def test_flattened(self):
+
+        npt.assert_almost_equal(
+            coefficient_of_variation(self.arr),
+            coefficient_of_variation(self.sarr)
+        )
+
+    def test_axis_0(self):
+
+        npt.assert_almost_equal(
+            coefficient_of_variation(self.arr, axis=0),
+            coefficient_of_variation(self.sarr, axis=0)
+        )
+
+    def test_axis_1(self):
+
+        npt.assert_almost_equal(
+            coefficient_of_variation(self.arr, axis=1),
+            coefficient_of_variation(self.sarr, axis=1)
         )

@@ -194,7 +194,7 @@ def assign_genes_to_programs(
 
     if np.sum(_has_old) > 0:
         vprint(
-            f"{np.sum(_has_old)} existing program labels kept",
+            f"{np.sum(_has_old)} existing program labels kept: "
             ", ".join([
                 f"Program {p}: {q} genes"
                 for p, q in zip(__old_labels, _old_counts)
@@ -203,7 +203,7 @@ def assign_genes_to_programs(
         )
 
     vprint(
-        "Genes assigned to programs: ",
+        "Genes assigned to programs: "
         ", ".join([
             f"Program {p}: {q} genes"
             for p, q in zip(_labels, _counts)
