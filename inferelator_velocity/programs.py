@@ -225,7 +225,8 @@ def program_select(
     _cluster_pc1 = np.zeros((d.shape[0], _n_l_clusts), dtype=float)
     for i in range(_n_l_clusts):
         _cluster_pc1[:, i] = _get_pcs(
-            d.layers['counts'][:, d.var['leiden'] == i],
+            d.X[:, d.var['leiden'] == i],
+            normalize=False,
             return_var_explained=False
         ).ravel()
 
