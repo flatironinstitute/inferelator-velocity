@@ -4,9 +4,18 @@ import numpy as np
 import numpy.testing as npt
 import anndata as ad
 
-from inferelator_velocity.programs import information_distance, _make_array_discrete, program_select
-from inferelator_velocity.metrics.information import mutual_information, _shannon_entropy
+from inferelator_velocity.programs import (
+    information_distance,
+    _make_array_discrete,
+    program_select
+)
+from inferelator_velocity.metrics.information import (
+    mutual_information,
+    _shannon_entropy
+)
 from inferelator_velocity.program_genes import assign_genes_to_programs
+
+from inferelator_velocity.plotting.programs import programs_summary
 
 N = 1000
 BINS = 10
@@ -39,6 +48,7 @@ PROGRAMS_ASSIGNED = ['0', '0', '0', '0', '1', '1']
 
 TIMES_0 = EXPRESSION[:, 0] / 100
 TIMES_1 = np.arange(N).astype(float)
+
 
 class TestProgramMetrics(unittest.TestCase):
 
@@ -91,12 +101,21 @@ class TestProgramMetrics(unittest.TestCase):
             calc_dist = 1 - mi / (entropy[:, None] + entropy[None, :] - mi)
             calc_dist[np.isnan(calc_dist)] = 0.
 
-        i_dist, mi_from_dist = information_distance(expr, BINS, logtype=np.log2, return_information=True)
+        i_dist, mi_from_dist = information_distance(
+            expr,
+            BINS,
+            logtype=np.log2,
+            return_information=True
+        )
 
         self.assertTrue(np.all(i_dist >= 0))
         npt.assert_almost_equal(mi, mi_from_dist)
         npt.assert_almost_equal(i_dist, calc_dist)
-        npt.assert_array_almost_equal(np.diagonal(i_dist), np.zeros_like(np.diagonal(i_dist)))
+        npt.assert_array_almost_equal(
+            np.diagonal(i_dist),
+            np.zeros_like(np.diagonal(i_dist))
+        )
+
 
 class TestProgram(unittest.TestCase):
 
@@ -104,7 +123,12 @@ class TestProgram(unittest.TestCase):
 
         adata = EXPRESSION_ADATA.copy()
 
-        program_select(adata, verbose=True, filter_to_hvg=False, normalize=False)
+        program_select(
+            adata,
+            verbose=True,
+            filter_to_hvg=False,
+            normalize=False
+        )
 
         for k in ADATA_UNS_PROGRAM_KEYS:
             self.assertIn(k, adata.uns['programs'].keys())
@@ -118,12 +142,19 @@ class TestProgram(unittest.TestCase):
 
         adata = EXPRESSION_ADATA.copy()
 
-        program_select(adata, verbose=True, filter_to_hvg=False, normalize=False, metric='euclidean')
+        program_select(
+            adata,
+            verbose=True,
+            filter_to_hvg=False,
+            normalize=False,
+            metric='euclidean'
+        )
 
         self.assertListEqual(
             PROGRAMS,
             adata.var['programs'].tolist()
         )
+
 
 class TestAssignGenesBasedOnTime(unittest.TestCase):
 
@@ -181,3 +212,24 @@ class TestAssignGenesBasedOnTime(unittest.TestCase):
         )
 
         self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)
+
+
+class TestProgramPlot(unittest.TestCase):
+
+    def test_plot_program(self):
+
+        adata = EXPRESSION_ADATA.copy()
+
+        program_select(
+            adata,
+            verbose=True,
+            filter_to_hvg=False,
+            normalize=False
+        )
+
+        f, a = programs_summary(adata)
+
+        self.assertEqual(
+            len(a),
+            5
+        )
