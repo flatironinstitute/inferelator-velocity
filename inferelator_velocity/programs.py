@@ -1,6 +1,6 @@
 import numpy as np
 import anndata as ad
-from scipy import sparse, stats
+from scipy import sparse
 
 import scanpy as sc
 from scanpy.neighbors import (
@@ -93,7 +93,6 @@ def program_select(
     :param random_state: Random seed for leiden, defaults to 50
     :type random_state: int
     :return: Data object with new attributes:
-        .obsm['program_PCs']: Principal component for each program
         .var['leiden']: Leiden cluster ID
         .var['program']: Program ID
         .uns['programs']: {
@@ -135,6 +134,9 @@ def program_select(
             axis=0
         )
 
+        # Keep anything that's 2 IQR above median variance
+        # mostly this is in the seurat HVG but the normalization
+        # seurat is doing is a bit unpredictable
         d.var['variance_norm'] = RobustScaler().fit_transform(
             d.var['variance'].values.reshape(-1, 1)
         ).ravel()
@@ -144,14 +146,14 @@ def program_select(
         d._inplace_subset_var(d.var['highly_variable'].values)
 
         vprint(
-            f"Normalized and kept {d.shape[1]} high variance genes",
+            f"Kept {d.shape[1]} high variance genes",
             verbose=verbose
         )
     else:
         sc.pp.filter_genes(d, min_cells=10)
 
         vprint(
-            f"Normalized and kept {d.shape[1]} expressed genes",
+            f"Kept {d.shape[1]} expressed genes",
             verbose=verbose
         )
 
@@ -172,7 +174,10 @@ def program_select(
 
     sc.pp.pca(d, n_comps=n_comps)
 
-    vprint(f"Using {n_comps} components", verbose=verbose)
+    vprint(
+        f"Selecting programs from expression based on {n_comps} components",
+        verbose=verbose
+    )
 
     # Rotate back to expression space
     pca_expr = d.obsm['X_pca'] @ d.varm['PCs'].T
@@ -203,7 +208,7 @@ def program_select(
         )
 
     vprint(
-        f"Calculating k-NN and Leiden for {dists.shape} distance array",
+        f"Clustering on {dists.shape} {metric} distance array",
         verbose=verbose
     )
 
@@ -217,18 +222,15 @@ def program_select(
     _n_l_clusts = d.var['leiden'].nunique()
 
     vprint(
-        f"Found {_n_l_clusts} unique gene clusters",
+        f"Clustered into {_n_l_clusts} unique gene clusters",
         verbose=verbose
     )
 
     # Get the first PC for each cluster of genes
     _cluster_pc1 = np.zeros((d.shape[0], _n_l_clusts), dtype=float)
     for i in range(_n_l_clusts):
-        _cluster_pc1[:, i] = _get_pcs(
-            d.X[:, d.var['leiden'] == i],
-            normalize=False,
-            return_var_explained=False
-        ).ravel()
+        _lidx = d.var['leiden'] == i
+        _cluster_pc1[:, i] = d.X[:, _lidx] @ d.varm['PCs'][_lidx, 0]
 
     # SECOND ROUND OF CLUSTERING TO MERGE GENE CLUSTERS INTO PROGRAMS #
 
@@ -286,111 +288,6 @@ def program_select(
         data.uns[PROGRAM_KEY]['mutual_information'] = mutual_info
 
     return data
-
-
-def program_pcs(
-    data,
-    program_id_vector,
-    program_id_levels=None,
-    skip_program_ids=(str(-1)),
-    normalize=True,
-    n_pcs=1
-):
-    """
-    Calculate principal components for a set of expression programs
-
-    :param data: Expression data [Obs x Features]
-    :type data: np.ndarray, sp.spmatrix
-    :param program_id_vector: List mapping Features to Program ID
-    :type program_id_vector: pd.Series, np.ndarray, list
-    :param skip_program_ids: Program IDs to skip, defaults to (str(-1))
-        Ignored if program_id_levels is set.
-    :type skip_program_ids: tuple, list, pd.Series, np.ndarray, optional
-    :param program_id_levels: Program IDs and order for output array
-    :type program_id_levels: pd.Series, np.ndarray, list, optional
-    :param normalize: Normalize expression data, defaults to False
-    :type normalize: bool, optional
-    :param n_pcs: Number of PCs to include for each program,
-        defaults to 1
-    :type n_pcs: int, optional
-    :returns: A numpy array with the program PCs for each program,
-        a numpy array with the program PCs variance ratio for each program,
-        and a list of Program IDs if program_id_levels is not set
-    :rtype: np.ndarray, np.ndarray, list (optional)
-    """
-
-    if program_id_levels is None:
-        use_ids = [i for i in np.unique(program_id_vector)
-                   if i not in skip_program_ids]
-    else:
-        use_ids = program_id_levels
-
-    p_pcs = np.zeros((data.shape[0], len(use_ids) * n_pcs), dtype=float)
-    vr_pcs = np.zeros(len(use_ids) * n_pcs, dtype=float)
-
-    for i, prog_id in enumerate(use_ids):
-        _idx, _r_idx = i * n_pcs, i * n_pcs + n_pcs
-
-        p_pcs[:, _idx:_r_idx], vr_pcs[_idx:_r_idx] = _get_pcs(
-            data[:, program_id_vector == prog_id],
-            normalize=normalize,
-            n_pcs=n_pcs
-        )
-
-    if program_id_levels is not None:
-        return p_pcs, vr_pcs
-
-    else:
-        return p_pcs, vr_pcs, use_ids
-
-
-def _get_pcs(
-    data,
-    n_pcs=1,
-    normalize=True,
-    return_var_explained=True
-):
-    """
-    Get the values for PC1
-
-    :param data: Data array or matrix [Obs x Var]
-    :type data: np.ndarray, sp.spmatrix
-    :param n_pcs: Number of PCs to include, defaults to 1
-    :type n_pcs: int
-    :param normalize: Normalize depth & log transform, defaults to True
-    :type normalize: bool, optional
-    :return: PCs [Obs, n_pcs]
-    :rtype: np.ndarray
-    """
-
-    if normalize:
-        data = sc.pp.log1p(
-            sc.pp.normalize_per_cell(
-                data.astype(float),
-                copy=True,
-                min_counts=0
-            )
-        )
-    else:
-        data = data.astype(float)
-
-    # Use single feature or pass to PCA
-    if data.shape[1] == 1:
-        _pca_X = stats.zscore(data)
-        _pca_var_ratio = np.array([1.])
-
-    else:
-        _pca_X, _, _pca_var_ratio, _ = sc.pp.pca(
-            data,
-            n_comps=n_pcs,
-            zero_center=True,
-            return_info=True
-        )
-
-    if return_var_explained:
-        return _pca_X[:, 0:n_pcs], _pca_var_ratio[0:n_pcs]
-    else:
-        return _pca_X[:, 0:n_pcs]
 
 
 def _leiden_cluster(

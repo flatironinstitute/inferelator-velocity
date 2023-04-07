@@ -1,4 +1,4 @@
-from .programs import program_select, program_pcs
+from .programs import program_select
 from .times import program_times, wrap_times
 from .program_graph import program_graphs, global_graph
 from .velocity import calc_velocity
