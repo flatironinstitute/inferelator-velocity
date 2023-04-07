@@ -52,6 +52,8 @@ TIMES_1 = np.arange(N).astype(float)
 
 class TestProgramMetrics(unittest.TestCase):
 
+    n_jobs = 1
+
     def test_binning(self):
 
         expr = _make_array_discrete(EXPRESSION, BINS)
@@ -65,14 +67,23 @@ class TestProgramMetrics(unittest.TestCase):
     def test_entropy(self):
 
         expr = _make_array_discrete(EXPRESSION, BINS)
-        entropy = _shannon_entropy(expr, 10, logtype=np.log2)
+        entropy = _shannon_entropy(
+            expr,
+            10,
+            logtype=np.log2,
+            n_jobs=self.n_jobs
+        )
 
-        print(entropy)
         self.assertTrue(np.all(entropy >= 0))
         npt.assert_almost_equal(entropy[4], np.log2(BINS))
         npt.assert_almost_equal(entropy[3], 0.)
 
-        entropy = _shannon_entropy(expr, 10, logtype=np.log)
+        entropy = _shannon_entropy(
+            expr,
+            10,
+            logtype=np.log,
+            n_jobs=self.n_jobs
+        )
 
         self.assertTrue(np.all(entropy >= 0))
         npt.assert_almost_equal(entropy[3], 0.)
@@ -82,8 +93,18 @@ class TestProgramMetrics(unittest.TestCase):
 
         expr = _make_array_discrete(EXPRESSION, BINS)
 
-        entropy = _shannon_entropy(expr, 10, logtype=np.log2)
-        mi = mutual_information(expr, 10, logtype=np.log2)
+        entropy = _shannon_entropy(
+            expr,
+            10,
+            logtype=np.log2,
+            n_jobs=self.n_jobs
+        )
+        mi = mutual_information(
+            expr,
+            10,
+            logtype=np.log2,
+            n_jobs=self.n_jobs
+        )
 
         self.assertTrue(np.all(mi >= 0))
         npt.assert_array_equal(mi[:, 3], np.zeros_like(mi[:, 3]))
@@ -94,8 +115,18 @@ class TestProgramMetrics(unittest.TestCase):
 
         expr = _make_array_discrete(EXPRESSION, BINS)
 
-        entropy = _shannon_entropy(expr, 10, logtype=np.log2)
-        mi = mutual_information(expr, 10, logtype=np.log2)
+        entropy = _shannon_entropy(
+            expr,
+            10,
+            logtype=np.log2,
+            n_jobs=self.n_jobs
+        )
+        mi = mutual_information(
+            expr,
+            10,
+            logtype=np.log2,
+            n_jobs=self.n_jobs
+        )
 
         with np.errstate(divide='ignore', invalid='ignore'):
             calc_dist = 1 - mi / (entropy[:, None] + entropy[None, :] - mi)
@@ -105,7 +136,8 @@ class TestProgramMetrics(unittest.TestCase):
             expr,
             BINS,
             logtype=np.log2,
-            return_information=True
+            return_information=True,
+            n_jobs=self.n_jobs
         )
 
         self.assertTrue(np.all(i_dist >= 0))
@@ -115,6 +147,11 @@ class TestProgramMetrics(unittest.TestCase):
             np.diagonal(i_dist),
             np.zeros_like(np.diagonal(i_dist))
         )
+
+
+class TestProgramMetricsParallel(TestProgramMetrics):
+
+    n_jobs = 2
 
 
 class TestProgram(unittest.TestCase):

@@ -39,14 +39,13 @@ def circular_rank_correlation(
 
     n = radian_array.shape[1]
 
-    slices = list(
-        gen_even_slices(
-            n,
-            effective_n_jobs(n_jobs)
-        )
-    )
-
     if n_jobs != 1:
+        slices = list(
+            gen_even_slices(
+                n,
+                effective_n_jobs(n_jobs)
+            )
+        )
         views = Parallel(n_jobs=n_jobs)(
             delayed(_circcorrcoef_array)(
                 radian_array,
@@ -63,10 +62,10 @@ def circular_rank_correlation(
         for i, c in zip(slices, views):
             corr[:, i] = c
 
+        return corr
+
     else:
         return _circcorrcoef_array(radian_array)
-
-    return corr
 
 
 def _circcorrcoef_array(
@@ -112,13 +111,6 @@ def _rank_circular_array(
 
     n = X.shape[1]
 
-    slices = list(
-        gen_even_slices(
-            n,
-            effective_n_jobs(n_jobs)
-        )
-    )
-
     def _array_apply(x_sub):
         return np.apply_along_axis(
             _radian_rank_vector,
@@ -127,6 +119,14 @@ def _rank_circular_array(
         )
 
     if n_jobs != 1:
+
+        slices = list(
+            gen_even_slices(
+                n,
+                effective_n_jobs(n_jobs)
+            )
+        )
+
         views = Parallel(n_jobs=n_jobs)(
             delayed(_array_apply)(
                 X[:, i]
@@ -142,10 +142,10 @@ def _rank_circular_array(
         for i, r in zip(slices, views):
             rad_array[:, i] = r
 
+        return rad_array
+
     else:
         return _array_apply(X)
-
-    return rad_array
 
 
 def _rank_vector(x):

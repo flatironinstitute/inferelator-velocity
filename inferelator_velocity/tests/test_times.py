@@ -38,9 +38,6 @@ class TestTimeEsts(unittest.TestCase):
             verbose=True
         )
 
-        print(EXPR)
-        print(LAB)
-
         self.assertListEqual(
             [0, 0.5, 1.],
             [times[v] for k, v in {'a': 2, 'b': 5, 'c': 9}.items()]

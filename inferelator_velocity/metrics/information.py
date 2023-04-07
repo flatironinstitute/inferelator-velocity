@@ -111,25 +111,34 @@ def mutual_information(
     m = x.shape[1]
     n = x.shape[1] if y is None else y.shape[1]
 
-    slices = list(gen_even_slices(n, effective_n_jobs(n_jobs)))
+    if n_jobs != 1:
+        slices = list(gen_even_slices(n, effective_n_jobs(n_jobs)))
 
-    views = Parallel(n_jobs=n_jobs)(
-        delayed(_mi_slice)(
+        views = Parallel(n_jobs=n_jobs)(
+            delayed(_mi_slice)(
+                x,
+                bins,
+                y_slicer=i,
+                y=y,
+                logtype=logtype
+            )
+            for i in slices
+        )
+
+        mutual_info = np.empty((m, n), dtype=float)
+
+        for i, r in zip(slices, views):
+            mutual_info[:, i] = r
+
+        return mutual_info
+
+    else:
+        return _mi_slice(
             x,
-            i,
             bins,
             y=y,
             logtype=logtype
         )
-        for i in slices
-    )
-
-    mutual_info = np.empty((m, n), dtype=float)
-
-    for i, r in zip(slices, views):
-        mutual_info[:, i] = r
-
-    return mutual_info
 
 
 def _shannon_entropy(
@@ -159,23 +168,31 @@ def _shannon_entropy(
 
     m, n = discrete_array.shape
 
-    slices = list(gen_even_slices(n, effective_n_jobs(n_jobs)))
+    if n_jobs != 1:
+        slices = list(gen_even_slices(n, effective_n_jobs(n_jobs)))
 
-    views = Parallel(n_jobs=n_jobs)(
-        delayed(_entropy_slice)(
-            discrete_array[:, i],
+        views = Parallel(n_jobs=n_jobs)(
+            delayed(_entropy_slice)(
+                discrete_array[:, i],
+                bins,
+                logtype=logtype
+            )
+            for i in slices
+        )
+
+        entropy = np.empty(n, dtype=float)
+
+        for i, r in zip(slices, views):
+            entropy[i] = r
+
+        return entropy
+
+    else:
+        return _entropy_slice(
+            discrete_array,
             bins,
             logtype=logtype
         )
-        for i in slices
-    )
-
-    entropy = np.empty(n, dtype=float)
-
-    for i, r in zip(slices, views):
-        entropy[i] = r
-
-    return entropy
 
 
 def _entropy_slice(
@@ -186,15 +203,20 @@ def _entropy_slice(
 
     def _entropy(vec):
         px = np.bincount(vec, minlength=bins) / vec.size
-        return -1 * np.nansum(px * logtype(px))
+        log_px = logtype(
+            px,
+            out=np.full_like(px, np.nan),
+            where=px > 0
+        )
+        return -1 * np.nansum(px * log_px)
 
     return np.apply_along_axis(_entropy, 0, x)
 
 
 def _mi_slice(
     x,
-    y_slicer,
     bins,
+    y_slicer=slice(None),
     y=None,
     logtype=np.log
 ):
