@@ -24,6 +24,8 @@ class TestCircCorrCoef(unittest.TestCase):
     ))
     v4 = np.arange(100)[::-1]
 
+    n_jobs = 1
+
     def setUp(self) -> None:
 
         self.arr = np.hstack((
@@ -60,7 +62,7 @@ class TestCircCorrCoef(unittest.TestCase):
     def test_array_radian(self):
 
         npt.assert_array_almost_equal(
-            _rank_circular_array(self.arr),
+            _rank_circular_array(self.arr, n_jobs=self.n_jobs),
             np.hstack((
                 _radian_rank_vector(self.v1).reshape(-1, 1),
                 _radian_rank_vector(self.v2).reshape(-1, 1),
@@ -72,7 +74,7 @@ class TestCircCorrCoef(unittest.TestCase):
     def test_array_circcorr(self):
 
         npt.assert_array_almost_equal(
-            circular_rank_correlation(self.arr[:, [0, 3]]),
+            circular_rank_correlation(self.arr[:, [0, 3]], n_jobs=self.n_jobs),
             np.array([
                 [1, -1],
                 [-1, 1]
@@ -80,7 +82,7 @@ class TestCircCorrCoef(unittest.TestCase):
         )
 
         npt.assert_array_almost_equal(
-            circular_rank_correlation(self.arr),
+            circular_rank_correlation(self.arr, n_jobs=self.n_jobs),
             np.array([
                 [1, 0, -1, -1],
                 [0, 1, 0, 0],
@@ -100,3 +102,8 @@ class TestCircCorrCoef(unittest.TestCase):
                     [-1, 0, 1, 1]
                 ])
             )
+
+
+class TestCircCorrCoefParallel(TestCircCorrCoef):
+
+    n_jobs = 2

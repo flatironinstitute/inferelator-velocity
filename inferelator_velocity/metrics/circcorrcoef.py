@@ -8,6 +8,23 @@ def circular_rank_correlation(
     X,
     n_jobs=-1
 ):
+    """
+    Calculate a rank circular correlation metric between features
+    by ranking values and normalizing ranks to [0, 2*pi]
+
+    rho = E[sin(x - x_bar) * sin(y - y_bar)] /
+    sqrt(var(sin(x - x_bar)) * var(sin(y - y_bar)))
+
+    Jammalamadaka and Sarma (1988)
+
+    :param X: Samples x Features [m x n] array
+    :type X: np.ndarray, sp.spmatrix
+    :param n_jobs: Number of cores,
+        defaults to -1
+    :type n_jobs: int, optional
+    :return: Correlation matrix [n x n]
+    :rtype: np.ndarray
+    """
 
     if X.ndim != 2:
         raise ValueError(
@@ -15,7 +32,10 @@ def circular_rank_correlation(
             f"{X.ndim}-dimensional {X.shape} passed"
         )
 
-    radian_array = _rank_circular_array(X, n_jobs=n_jobs)
+    radian_array = _rank_circular_array(
+        X,
+        n_jobs=n_jobs
+    )
 
     n = radian_array.shape[1]
 
@@ -26,21 +46,25 @@ def circular_rank_correlation(
         )
     )
 
-    views = Parallel(n_jobs=n_jobs)(
-        delayed(_circcorrcoef_array)(
-            radian_array,
-            subset=i
+    if n_jobs != 1:
+        views = Parallel(n_jobs=n_jobs)(
+            delayed(_circcorrcoef_array)(
+                radian_array,
+                subset=i
+            )
+            for i in slices
         )
-        for i in slices
-    )
 
-    corr = np.empty(
-        (n, n),
-        dtype=float
-    )
+        corr = np.empty(
+            (n, n),
+            dtype=float
+        )
 
-    for i, c in zip(slices, views):
-        corr[:, i] = c
+        for i, c in zip(slices, views):
+            corr[:, i] = c
+
+    else:
+        return _circcorrcoef_array(radian_array)
 
     return corr
 
@@ -102,20 +126,24 @@ def _rank_circular_array(
             x_sub
         )
 
-    views = Parallel(n_jobs=n_jobs)(
-        delayed(_array_apply)(
-            X[:, i]
+    if n_jobs != 1:
+        views = Parallel(n_jobs=n_jobs)(
+            delayed(_array_apply)(
+                X[:, i]
+            )
+            for i in slices
         )
-        for i in slices
-    )
 
-    rad_array = np.empty(
-        X.shape,
-        dtype=float
-    )
+        rad_array = np.empty(
+            X.shape,
+            dtype=float
+        )
 
-    for i, r in zip(slices, views):
-        rad_array[:, i] = r
+        for i, r in zip(slices, views):
+            rad_array[:, i] = r
+
+    else:
+        return _array_apply(X)
 
     return rad_array
 
