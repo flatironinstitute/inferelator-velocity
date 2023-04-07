@@ -23,6 +23,28 @@ def global_graph(
     use_sparse=True,
     verbose=False
 ):
+    """
+    Generate a k-NN graph for data using noise2self
+
+    :param data: Data AnnData object
+    :type data: ad.AnnData
+    :param layer: Layer to use for kNN, defaults to "X"
+    :type layer: str, optional
+    :param neighbors: Search space for k neighbors,
+        defaults to 15 - 105 by 10
+    :type neighbors: np.ndarray, optional
+    :param npcs: Search space for number of PCs,
+        defaults to 5-105 by 10
+    :type npcs: np.ndarray, optional
+    :param use_sparse: Use sparse data structures (slower).
+        Will densify a sparse expression matrix (faster, more memory) if False,
+        defaults to True
+    :type use_sparse: bool
+    :param verbose: Print detailed status, defaults to False
+    :type verbose: bool, optional
+    :return: AnnData object with `noise2self` obps and uns key
+    :rtype: ad.AnnData
+    """
 
     vprint(
         f"Embedding graph from {data.shape} data",
@@ -70,7 +92,8 @@ def program_graphs(
     :type data: ad.AnnData
     :param layer: Layer containing count data, defaults to "X"
     :type layer: str, optional
-    :param program_var_key: Key to find program IDs in var data, defaults to 'programs'
+    :param program_var_key: Key to find program IDs in var data,
+        defaults to 'programs'
     :type program_var_key: str, optional
     :param programs: Program IDs to calculate times for, defaults to None
     :type programs: tuple, optional

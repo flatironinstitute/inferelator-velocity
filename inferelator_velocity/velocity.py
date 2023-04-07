@@ -2,7 +2,13 @@ import numpy as _np
 from scipy.sparse import issparse as _is_sparse
 from tqdm import trange
 
-def calc_velocity(expr, time_axis, neighbor_graph, wrap_time=None):
+
+def calc_velocity(
+    expr,
+    time_axis,
+    neighbor_graph,
+    wrap_time=None
+):
     """
     Calculate local RNA velocity
 
@@ -26,7 +32,12 @@ def calc_velocity(expr, time_axis, neighbor_graph, wrap_time=None):
     )
 
 
-def _calc_local_velocity(expr, time_axis, center_index, wrap_time=None):
+def _calc_local_velocity(
+    expr,
+    time_axis,
+    center_index,
+    wrap_time=None
+):
     """
     Calculate a local rate of change
 

@@ -161,7 +161,7 @@ def knn_noise2self(
             local_neighbors,
             by_row=True,
             X_compare=expr_data,
-            pbar=False
+            pbar=True
         ),
         axis=0
     )]
