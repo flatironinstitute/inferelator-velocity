@@ -85,8 +85,8 @@ def assign_genes_to_programs(
     if np.all(_has_old):
 
         vprint(
-            "All genes annotated with existing labels to keep;"
-            f"{np.sum(_has_old)} existing program labels kept"
+            "All genes annotated with existing labels to keep: "
+            f"{np.sum(_has_old)} existing program labels kept "
             f"for programs {', '.join(programs)}",
             verbose=verbose
         )

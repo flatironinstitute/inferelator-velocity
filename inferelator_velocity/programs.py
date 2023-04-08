@@ -8,7 +8,6 @@ from scanpy.neighbors import (
     _compute_connectivities_umap
 )
 
-from sklearn.preprocessing import RobustScaler
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import pairwise_distances
 
@@ -18,7 +17,6 @@ from .utils.mcv import mcv_pcs
 from .utils import (
     vprint,
     copy_count_layer,
-    variance,
     standardize_data
 )
 from .metrics import (
@@ -124,24 +122,8 @@ def program_select(
         sc.pp.highly_variable_genes(
             d,
             max_mean=np.inf,
-            min_disp=0.01
+            min_disp=0.0
         )
-
-        # But also make sure high-variance genes aren't
-        # getting excluded
-        d.var['variance'] = variance(
-            d.X,
-            axis=0
-        )
-
-        # Keep anything that's 2 IQR above median variance
-        # mostly this is in the seurat HVG but the normalization
-        # seurat is doing is a bit unpredictable
-        d.var['variance_norm'] = RobustScaler().fit_transform(
-            d.var['variance'].values.reshape(-1, 1)
-        ).ravel()
-
-        d.var['highly_variable'] |= d.var['variance_norm'] > 2
 
         d._inplace_subset_var(d.var['highly_variable'].values)
 
@@ -149,6 +131,7 @@ def program_select(
             f"Kept {d.shape[1]} high variance genes",
             verbose=verbose
         )
+
     else:
         sc.pp.filter_genes(d, min_cells=10)
 
