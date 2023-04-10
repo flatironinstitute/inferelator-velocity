@@ -1,10 +1,20 @@
 import unittest
 
 import numpy as np
+import anndata as ad
 
 from inferelator_velocity.times import (
     program_times,
     calculate_times
+)
+
+from inferelator_velocity.plotting.program_times import (
+    program_time_summary
+)
+
+from inferelator_velocity.utils.keys import (
+    PROG_NAMES_SUBKEY,
+    PROGRAM_KEY
 )
 
 N = 10
@@ -41,6 +51,101 @@ class TestTimeEsts(unittest.TestCase):
         self.assertListEqual(
             [0, 0.5, 1.],
             [times[v] for k, v in {'a': 2, 'b': 5, 'c': 9}.items()]
+        )
+
+
+class TestProgramTimes(unittest.TestCase):
+
+    def setUp(self) -> None:
+
+        self.adata = ad.AnnData(
+            EXPR,
+            dtype=EXPR.dtype
+        )
+
+        self.adata.obs['group'] = LAB
+        self.adata.var[PROGRAM_KEY] = '0'
+        self.adata.uns[PROGRAM_KEY] = {
+            PROG_NAMES_SUBKEY: ['0']
+        }
+
+        return super().setUp()
+
+    def test_program_times(self):
+
+        program_times(
+            self.adata,
+            {'0': 'group'},
+            {'0': COL}
+        )
+
+        times = self.adata.obs['program_0_time']
+
+        self.assertListEqual(
+            [0, 0.5, 1.],
+            [times[v] for k, v in {'a': 2, 'b': 5, 'c': 9}.items()]
+        )
+
+    def test_program_times_exceptions(self):
+
+        with self.assertRaises(ValueError):
+
+            program_times(
+                self.adata,
+                {'0': 'group'},
+                {'0': COL},
+                program_var_key='abiubiosu'
+            )
+
+        with self.assertRaises(ValueError):
+
+            program_times(
+                self.adata,
+                {'1': 'group'},
+                {'0': COL}
+            )
+
+        with self.assertRaises(ValueError):
+
+            program_times(
+                self.adata,
+                {'0': 'group'},
+                {'1': COL}
+            )
+
+        del self.adata.uns[PROGRAM_KEY]
+
+        with self.assertRaises(RuntimeError):
+
+            program_times(
+                self.adata,
+                {'0': 'group'},
+                {'0': COL}
+            )
+
+    def test_program_time_plots(self):
+
+        with self.assertRaises(RuntimeError):
+
+            f, a = program_time_summary(
+                self.adata,
+                '0'
+            )
+
+        program_times(
+            self.adata,
+            {'0': 'group'},
+            {'0': COL}
+        )
+
+        f, a = program_time_summary(
+            self.adata,
+            '0'
+        )
+
+        self.assertEqual(
+            len(a),
+            4
         )
 
 

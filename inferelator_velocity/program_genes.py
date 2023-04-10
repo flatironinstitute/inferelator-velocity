@@ -4,9 +4,22 @@ import scipy.sparse as sps
 
 from inferelator_velocity.utils.misc import vprint
 
-from .utils import copy_count_layer, is_iterable_arg
-from .utils.keys import OBS_TIME_KEY, N_BINS, PROGRAM_KEY
-from .metrics import mutual_information, make_array_discrete
+from .utils import (
+    copy_count_layer,
+    is_iterable_arg
+)
+
+from .metrics import (
+    mutual_information,
+    make_array_discrete
+)
+
+from .utils.keys import (
+    OBS_TIME_KEY,
+    N_BINS,
+    PROGRAM_KEY,
+    get_program_ids
+)
 
 
 def assign_genes_to_programs(
@@ -59,11 +72,7 @@ def assign_genes_to_programs(
     """
 
     if programs is None:
-        programs = [
-            p
-            for p in data.uns[PROGRAM_KEY]['program_names']
-            if p != '-1'
-        ]
+        programs = get_program_ids(data)
     elif is_iterable_arg(programs):
         pass
     else:

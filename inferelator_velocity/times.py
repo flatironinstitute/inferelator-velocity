@@ -29,7 +29,12 @@ from .utils.keys import (
     SHORTEST_PATH_SUBKEY,
     CLUSTER_ORDER_SUBKEY,
     CLUSTER_TIME_SUBKEY,
-    ASSIGNMENT_PATH_SUBKEY
+    ASSIGNMENT_PATH_SUBKEY,
+    N_COMP_SUBKEY,
+    OBS_GROUP_KEY_KEY,
+    OBS_TIME_KEY_KEY,
+    OBSM_KEY_KEY,
+    get_program_ids
 )
 
 
@@ -40,7 +45,7 @@ def program_times(
     wrap_time=None,
     layer="X",
     program_var_key=PROGRAM_KEY,
-    programs=('0', '1'),
+    programs=None,
     n_comps=None,
     verbose=False
 ):
@@ -69,8 +74,8 @@ def program_times(
     :param program_var_key: Key to find program IDs in var data,
         defaults to 'program'
     :type program_var_key: str, optional
-    :param programs: Program IDs to calculate times for,
-        defaults to ('0', '1')
+    :param programs: Program IDs to calculate times for, None will
+        calculate times for all programs, defaults to None
     :type programs: tuple, optional
     :param n_comps: Dict, keyed by program ID, of number of components
         to use per program. If None, select number of components by
@@ -83,12 +88,37 @@ def program_times(
     :rtype: ad.AnnData
     """
 
-    if is_iterable_arg(programs):
+    if programs is None:
+        programs = get_program_ids(data)
+    elif is_iterable_arg(programs):
         pass
     else:
         programs = [programs]
 
+    if program_var_key not in data.var.columns:
+        raise ValueError(
+            f"Column {program_var_key} is not in data.var"
+        )
+
     for prog in programs:
+
+        if prog not in cluster_obs_key_dict:
+            raise ValueError(
+                "cluster_obs_key_dict does not have a key for "
+                f"program {prog}"
+            )
+
+        if prog not in cluster_order_dict:
+            raise ValueError(
+                "cluster_order_dict does not have a key for "
+                f"program {prog}"
+            )
+
+        if cluster_obs_key_dict[prog] not in data.obs.columns:
+            raise ValueError(
+                f"Column {cluster_obs_key_dict[prog]} is not found "
+                "in data.obs"
+            )
 
         # Put program name into data subkeys
         _obsk = OBS_TIME_KEY.format(prog=prog)
@@ -122,9 +152,9 @@ def program_times(
         )
 
         # Add keys to the .uns object
-        data.uns[_obsmk]['obs_time_key'] = _obsk
-        data.uns[_obsmk]['obs_group_key'] = cluster_obs_key_dict[prog]
-        data.uns[_obsmk]['obsm_key'] = _obsmk
+        data.uns[_obsmk][OBS_TIME_KEY_KEY] = _obsk
+        data.uns[_obsmk][OBS_GROUP_KEY_KEY] = cluster_obs_key_dict[prog]
+        data.uns[_obsmk][OBSM_KEY_KEY] = _obsmk
 
         # Put the cluster information into the .uns object
         _cluster_order, _cluster_times = order_dict_to_lists(
@@ -421,6 +451,7 @@ def calculate_times(
     adata.uns['pca'][ASSIGNMENT_CENTROID_SUBKEY] = group['centroids']
     adata.uns['pca'][MCV_LOSS_SUBKEY] = _mcv_error
     adata.uns['pca'][ASSIGNMENT_PATH_SUBKEY] = group['path']
+    adata.uns['pca'][N_COMP_SUBKEY] = n_comps
 
     if return_components:
         return times, adata.obsm['X_pca'], adata.uns['pca']
