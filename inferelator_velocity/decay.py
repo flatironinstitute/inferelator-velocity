@@ -329,6 +329,12 @@ def _estimate_decay(
     :rtype: float, float
     """
 
+    # Cast to dense if needed
+    try:
+        expression_data = expression_data.A.ravel()
+    except AttributeError:
+        pass
+
     # If there is an estimate for alpha,
     # modify velocity to remove the alpha component
     if alpha_est is not None:
