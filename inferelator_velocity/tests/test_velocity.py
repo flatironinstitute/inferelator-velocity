@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import numpy.testing as npt
+from scipy.sparse import csr_matrix
 
 from inferelator_velocity.velocity import calc_velocity, _calc_local_velocity
 
@@ -25,16 +26,29 @@ KNN[N - 1, 0] = 1
 
 class TestVelocity(unittest.TestCase):
 
+    def setUp(self) -> None:
+        self.expr = T_EXPRESSION.copy()
+        self.ones_graph = np.ones((N, N))
+        self.knn = KNN.copy()
+
     def test_calc_velocity(self):
 
         correct_velo = np.tile(T_SLOPES[:, None], N).T
-        velo = calc_velocity(T_EXPRESSION, TIME, np.ones((N, N)),
-                             wrap_time=None)
+        velo = calc_velocity(
+            self.expr,
+            TIME,
+            self.ones_graph,
+            wrap_time=None
+        )
 
         npt.assert_array_almost_equal(correct_velo, velo)
 
-        velo_wrap = calc_velocity(T_EXPRESSION, TIME, np.ones((N, N)),
-                                  wrap_time=0)
+        velo_wrap = calc_velocity(
+            self.expr,
+            TIME,
+            self.ones_graph,
+            wrap_time=0
+        )
 
         npt.assert_array_almost_equal(correct_velo, velo_wrap)
 
@@ -46,13 +60,21 @@ class TestVelocity(unittest.TestCase):
         t = TIME.copy().astype(float)
         t[0] = np.nan
 
-        velo = calc_velocity(T_EXPRESSION, t, np.ones((N, N)),
-                             wrap_time=None)
+        velo = calc_velocity(
+            self.expr,
+            t,
+            self.ones_graph,
+            wrap_time=None
+        )
 
         npt.assert_array_almost_equal(correct_velo, velo)
 
-        velo_wrap = calc_velocity(T_EXPRESSION, t, np.ones((N, N)),
-                                  wrap_time=0)
+        velo_wrap = calc_velocity(
+            self.expr,
+            t,
+            self.ones_graph,
+            wrap_time=0
+        )
 
         npt.assert_array_almost_equal(correct_velo, velo_wrap)
 
@@ -62,20 +84,32 @@ class TestVelocity(unittest.TestCase):
 
         npt.assert_array_almost_equal(
             correct_velo,
-            calc_velocity(T_EXPRESSION, TIME, KNN,
-                          wrap_time=None)
+            calc_velocity(
+                self.expr,
+                TIME,
+                self.knn,
+                wrap_time=None
+            )
         )
 
         npt.assert_array_almost_equal(
             correct_velo,
-            calc_velocity(T_EXPRESSION, TIME, KNN,
-                          wrap_time=200)
+            calc_velocity(
+                self.expr,
+                TIME,
+                self.knn,
+                wrap_time=200
+            )
         )
 
         npt.assert_array_almost_equal(
             correct_velo,
-            calc_velocity(T_EXPRESSION, TIME, KNN,
-                          wrap_time=0)
+            calc_velocity(
+                self.expr,
+                TIME,
+                self.knn,
+                wrap_time=0
+            )
         )
 
         # Correct the first and last velocities
@@ -86,14 +120,14 @@ class TestVelocity(unittest.TestCase):
 
         npt.assert_array_almost_equal(
             wrap_edge_correct,
-            calc_velocity(T_EXPRESSION, TIME, KNN,
+            calc_velocity(self.expr, TIME, self.knn,
                           wrap_time=10)
         )
 
     def test_single_velocity(self):
 
         velo_0 = _calc_local_velocity(
-            T_EXPRESSION[0:5],
+            self.expr[0:5],
             TIME[0:5],
             2
         )
@@ -103,7 +137,7 @@ class TestVelocity(unittest.TestCase):
     def test_single_velocity_wrap(self):
 
         velo_0 = _calc_local_velocity(
-            T_EXPRESSION[0:6],
+            self.expr[0:6],
             np.hstack((TIME[7:], TIME[0:3])),
             2,
             wrap_time=N
@@ -112,10 +146,18 @@ class TestVelocity(unittest.TestCase):
         npt.assert_array_almost_equal(velo_0.ravel(), T_SLOPES)
 
         velo_1 = _calc_local_velocity(
-            T_EXPRESSION[0:6],
+            self.expr[0:6],
             np.hstack((TIME[7:], TIME[0:3])),
             3,
             wrap_time=N
         )
 
         npt.assert_array_almost_equal(velo_1.ravel(), T_SLOPES)
+
+
+class TestVelocitySparse(TestVelocity):
+
+    def setUp(self) -> None:
+        self.expr = csr_matrix(T_EXPRESSION)
+        self.ones_graph = csr_matrix(np.ones((N, N)))
+        self.knn = csr_matrix(KNN)

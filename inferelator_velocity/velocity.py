@@ -22,8 +22,8 @@ def calc_velocity(
     return _np.vstack(
         [
             _calc_local_velocity(
-                expr[n_idx, :].copy(),
-                time_axis[n_idx].copy(),
+                expr[n_idx, :],
+                time_axis[n_idx],
                 (n_idx == i).nonzero()[0][0],
                 wrap_time=wrap_time
             )
@@ -56,6 +56,12 @@ def _calc_local_velocity(
 
     if wrap_time is not None:
         time_axis = _wrap_time(time_axis, wrap_time)
+
+    # Densify a sparse matrix
+    try:
+        expr = expr.A
+    except AttributeError:
+        pass
 
     # Calculate change in expression and time relative to the centerpoint
     y_diff = _np.subtract(expr, expr[center_index, :])
