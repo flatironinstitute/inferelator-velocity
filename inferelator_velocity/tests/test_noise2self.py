@@ -9,6 +9,7 @@ import unittest
 from inferelator_velocity.utils.graph import local_optimal_knn
 from inferelator_velocity.utils.noise2self import (
     _dist_to_row_stochastic,
+    _connect_to_row_stochastic,
     _search_k,
     knn_noise2self
 )
@@ -47,6 +48,7 @@ DIST = sklearn.metrics.pairwise_distances(EXPR, metric='cosine')
 
 ADATA = ad.AnnData(EXPR, dtype=int)
 
+
 def _knn(k):
     return local_optimal_knn(sps.csr_matrix(DIST), np.array([k] * 100), keep='smallest')
 
@@ -64,6 +66,16 @@ class TestRowStochastic(unittest.TestCase):
 
         self.assertTrue(sps.isspmatrix_csr(row_stochastic))
 
+    def test_full_k_connect(self):
+        graph = sps.csr_matrix(DIST)
+
+        row_stochastic = _connect_to_row_stochastic(graph)
+        row_sums = row_stochastic.sum(axis=1).A1
+
+        npt.assert_almost_equal(np.ones_like(row_sums), row_sums)
+        self.assertEqual(len(row_sums), M)
+
+        self.assertTrue(sps.isspmatrix_csr(row_stochastic))
 
     def test_small_k(self):
         graph = _knn(3)
@@ -78,10 +90,31 @@ class TestRowStochastic(unittest.TestCase):
 
         self.assertTrue(sps.isspmatrix_csr(row_stochastic))
 
+    def test_small_k_connect(self):
+        graph = _knn(3)
+
+        npt.assert_array_equal(graph.getnnz(axis=1), np.full(M, 3))
+
+        row_stochastic = _connect_to_row_stochastic(graph)
+        row_sums = row_stochastic.sum(axis=1).A1
+
+        npt.assert_almost_equal(np.ones_like(row_sums), row_sums)
+        self.assertEqual(len(row_sums), M)
+
+        self.assertTrue(sps.isspmatrix_csr(row_stochastic))
 
     def test_zero_k(self):
 
         row_stochastic = _dist_to_row_stochastic(sps.csr_matrix((M, M), dtype=float))
+        row_sums = row_stochastic.sum(axis=1).A1
+
+        npt.assert_almost_equal(np.zeros_like(row_sums), row_sums)
+
+        self.assertTrue(sps.isspmatrix_csr(row_stochastic))
+
+    def test_zero_k_connect(self):
+
+        row_stochastic = _connect_to_row_stochastic(sps.csr_matrix((M, M), dtype=float))
         row_sums = row_stochastic.sum(axis=1).A1
 
         npt.assert_almost_equal(np.zeros_like(row_sums), row_sums)

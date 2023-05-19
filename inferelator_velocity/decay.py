@@ -230,8 +230,8 @@ def calc_decay(
 
     if expression_data.shape != velocity_data.shape:
         raise ValueError(
-            f"Expression data {expression_data.shape} ",
-            f"and velocity data {velocity_data.shape} ",
+            f"Expression data {expression_data.shape} "
+            f"and velocity data {velocity_data.shape} "
             "are not the same size"
         )
 

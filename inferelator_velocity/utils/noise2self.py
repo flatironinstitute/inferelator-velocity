@@ -42,7 +42,8 @@ def knn_noise2self(
     verbose=False,
     metric='euclidean',
     return_errors=False,
-    use_sparse=True
+    use_sparse=True,
+    connectivity=False
 ):
     """
     Select an optimal set of graph parameters based on noise2self
@@ -67,6 +68,9 @@ def knn_noise2self(
         Will densify a sparse expression matrix (faster, more memory) if False,
         defaults to True
     :type use_sparse: bool
+    :param connectivity: Calculate row stochastic matrix from connectivity,
+        not from distance
+    :type connectivity: bool
     :return: Optimal k-NN graph
         global optimal # of PCs,
         global optimal k,
@@ -77,10 +81,12 @@ def knn_noise2self(
     neighbors = N_NEIGHBORS if neighbors is None else neighbors
     npcs = N_PCS if npcs is None else npcs
 
-    vprint(f"Searching {len(npcs)} PC x {len(neighbors)} Neighbors space",
-           verbose=verbose)
+    vprint(
+        f"Searching {len(npcs)} PC x {len(neighbors)} Neighbors space",
+        verbose=verbose
+    )
 
-    data_obj = ad.AnnData(count_data, dtype=np.float32)
+    data_obj = ad.AnnData(count_data.astype(np.float32))
 
     sc.pp.normalize_per_cell(data_obj)
     sc.pp.log1p(data_obj)
@@ -124,7 +130,8 @@ def knn_noise2self(
             expr_data,
             data_obj.obsp['distances'],
             neighbors,
-            X_compare=expr_data
+            X_compare=expr_data,
+            connectivity=connectivity
         )
 
     # Get the index of the optimal PCs and k based on
@@ -161,7 +168,8 @@ def knn_noise2self(
             local_neighbors,
             by_row=True,
             X_compare=expr_data,
-            pbar=True
+            pbar=True,
+            connectivity=connectivity
         ),
         axis=0
     )]
@@ -215,7 +223,8 @@ def _search_k(
     k,
     by_row=False,
     X_compare=None,
-    pbar=False
+    pbar=False,
+    connectivity=False
 ):
     """
     Find optimal number of neighbors for a given graph
@@ -245,6 +254,11 @@ def _search_k(
 
     rfunc = tqdm.trange if pbar else range
 
+    if connectivity:
+        row_normalize = _connect_to_row_stochastic
+    else:
+        row_normalize = _dist_to_row_stochastic
+
     for i in rfunc(n_k):
 
         # Extract k non-zero neighbors from the graph
@@ -255,9 +269,7 @@ def _search_k(
         )
 
         # Convert to a row stochastic graph
-        k_graph = _dist_to_row_stochastic(
-            k_graph
-        )
+        k_graph = row_normalize(k_graph)
 
         # Calculate mean squared error
         mses[i] = mean_squared_error(
@@ -273,7 +285,7 @@ def _dist_to_row_stochastic(graph):
 
     if sps.issparse(graph):
 
-        rowsum = graph.sum(axis=1).A1
+        rowsum = graph.sum(axis=1).A1.astype(float)
         rowsum[rowsum == 0] = 1.
 
         # Dot product between inverse rowsum diagonalized
@@ -281,7 +293,7 @@ def _dist_to_row_stochastic(graph):
         # Somehow faster then element-wise \_o_/
         return dot(
             sps.diags(
-                (1 / rowsum),
+                (1. / rowsum),
                 offsets=0,
                 shape=graph.shape,
                 format='csr',
@@ -295,3 +307,10 @@ def _dist_to_row_stochastic(graph):
         rowsum[rowsum == 0] = 1.
 
         return np.multiply(graph, (1 / rowsum)[:, None])
+
+
+def _connect_to_row_stochastic(graph):
+
+    graph = graph != 0
+
+    return _dist_to_row_stochastic(graph.astype(float))

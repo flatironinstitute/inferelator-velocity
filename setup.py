@@ -10,7 +10,8 @@ install_requires = [
     "joblib",
     "scikit-learn",
     "tqdm",
-    "sparse_dot_mkl"
+    "sparse_dot_mkl",
+    "leidenalg"
 ]
 
 tests_require = [
