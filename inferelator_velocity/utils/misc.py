@@ -177,7 +177,7 @@ def copy_count_layer(data, layer):
             "these results will be nonsense."
         )
 
-    d = ad.AnnData(lref, dtype=float)
+    d = ad.AnnData(lref.astype(float))
     d.layers['counts'] = lref.copy()
     d.var = data.var.copy()
 

@@ -59,8 +59,7 @@ class TestProgramTimes(unittest.TestCase):
     def setUp(self) -> None:
 
         self.adata = ad.AnnData(
-            EXPR,
-            dtype=EXPR.dtype
+            EXPR
         )
 
         self.adata.obs['group'] = LAB

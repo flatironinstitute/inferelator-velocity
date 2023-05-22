@@ -300,7 +300,7 @@ def _leiden_cluster(
     leiden_kws['adjacency'] = knn_connect
     leiden_kws['random_state'] = leiden_kws.get('random_state', random_state)
 
-    ad_arr = ad.AnnData(dist_array, dtype=float)
+    ad_arr = ad.AnnData(dist_array.astype(float))
 
     sc.tl.leiden(ad_arr, **leiden_kws)
 

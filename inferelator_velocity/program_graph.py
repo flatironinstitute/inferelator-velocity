@@ -21,6 +21,7 @@ def global_graph(
     neighbors=None,
     npcs=None,
     use_sparse=True,
+    connectivity=False,
     verbose=False
 ):
     """
@@ -40,6 +41,9 @@ def global_graph(
         Will densify a sparse expression matrix (faster, more memory) if False,
         defaults to True
     :type use_sparse: bool
+    :param connectivity: Use a connectivity graph instead of a distance graph,
+        defaults to False
+    :type connectivity: bool, optional
     :param verbose: Print detailed status, defaults to False
     :type verbose: bool, optional
     :return: AnnData object with `noise2self` obps and uns key
@@ -58,7 +62,8 @@ def global_graph(
         neighbors=neighbors,
         npcs=npcs,
         verbose=verbose,
-        use_sparse=use_sparse
+        use_sparse=use_sparse,
+        connectivity=connectivity
     )
 
     vprint(
@@ -83,6 +88,7 @@ def program_graphs(
     neighbors=None,
     npcs=None,
     use_sparse=True,
+    connectivity=False,
     verbose=False
 ):
     """
@@ -106,7 +112,10 @@ def program_graphs(
     :param use_sparse: Use sparse data structures (slower).
         Will densify a sparse expression matrix (faster, more memory) if False,
         defaults to True
-    :type use_sparse: bool
+    :type use_sparse: bool, optional
+    :param connectivity: Use a connectivity graph instead of a distance graph,
+        defaults to False
+    :type connectivity: bool, optional
     :param verbose: Print detailed status, defaults to False
     :type verbose: bool, optional
     :return: AnnData object with `program_{id}_distances` obps key
@@ -143,7 +152,8 @@ def program_graphs(
             neighbors=neighbors,
             npcs=npcs,
             verbose=verbose,
-            use_sparse=use_sparse
+            use_sparse=use_sparse,
+            connectivity=connectivity
         )
 
         vprint(

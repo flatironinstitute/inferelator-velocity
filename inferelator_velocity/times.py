@@ -240,7 +240,7 @@ def calculate_times(
 
     # Construct an adata object and normalize it
     adata = standardize_data(
-        ad.AnnData(count_data, dtype=float)
+        ad.AnnData(count_data.astype(float))
     )
 
     # Calculate chosen PCA & neighbor graph

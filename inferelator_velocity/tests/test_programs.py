@@ -29,7 +29,7 @@ EXPRESSION[:, 4] = np.arange(N)
 EXPRESSION[:, 5] = np.arange(N) * 2 + 10
 
 
-EXPRESSION_ADATA = ad.AnnData(EXPRESSION.astype(int), dtype=int)
+EXPRESSION_ADATA = ad.AnnData(EXPRESSION.astype(int))
 
 ADATA_UNS_PROGRAM_KEYS = [
     'metric',

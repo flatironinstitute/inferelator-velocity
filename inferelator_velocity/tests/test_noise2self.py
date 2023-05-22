@@ -46,7 +46,7 @@ NOISE = RNG.negative_binomial(
 EXPR = BASE + NOISE
 DIST = sklearn.metrics.pairwise_distances(EXPR, metric='cosine')
 
-ADATA = ad.AnnData(EXPR, dtype=int)
+ADATA = ad.AnnData(EXPR.astype(int))
 
 
 def _knn(k):
