@@ -311,6 +311,7 @@ def _dist_to_row_stochastic(graph):
 
 def _connect_to_row_stochastic(graph):
 
+    graph_dtype = graph.dtype
     graph = graph != 0
 
-    return _dist_to_row_stochastic(graph.astype(float))
+    return _dist_to_row_stochastic(graph.astype(graph_dtype))
