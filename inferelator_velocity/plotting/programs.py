@@ -60,7 +60,10 @@ def programs_summary(
 
     if 'info_dist' in ax:
 
-        _matrix_info = adata.uns[programs_key]['information_distance']
+        _metric = adata.uns[programs_key]['metric']
+        _matrix_info = adata.uns[programs_key][
+            f"{_metric}_distance"
+        ]
         _idx = _hclust(_matrix_info)
         _matrix_info = _matrix_info[:, _idx][_idx, :]
 
@@ -75,7 +78,9 @@ def programs_summary(
 
         ax['info_dist'].set_xlabel("Genes", size=8)
         ax['info_dist'].set_xlabel("Genes", size=8)
-        ax['info_dist'].set_title("Information Dist.", size=8)
+        ax['info_dist'].set_title(
+            f"{_metric.capitalize()} Dist.", size=8
+        )
         ax['info_dist'].set_title("A", loc='left', weight='bold', size=8)
 
     if 'info_cbar' in ax:

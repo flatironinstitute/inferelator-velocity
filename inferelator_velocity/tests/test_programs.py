@@ -164,7 +164,8 @@ class TestProgram(unittest.TestCase):
             adata,
             verbose=True,
             filter_to_hvg=False,
-            normalize=False
+            normalize=False,
+            metric='information'
         )
 
         for k in ADATA_UNS_PROGRAM_KEYS:
