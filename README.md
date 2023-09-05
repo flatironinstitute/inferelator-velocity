@@ -8,7 +8,7 @@ This is a package that calculates dynamic (time-dependent) latent parameters fro
 single-cell expression data and associated experimental metadata or bulk RNA-seq data.
 It is designed to create data that is compatible with the 
 [inferelator](https://github.com/flatironinstitute/inferelator) or 
-[supirfactor-dynamical](https://github.com/GreshamLab/supirfactor-dynamical)packages.
+[supirfactor-dynamical](https://github.com/GreshamLab/supirfactor-dynamical) packages.
 
 ### Installation
 
