@@ -44,12 +44,12 @@ def program_select(
     n_programs=2,
     n_comps=None,
     layer="X",
-    normalize=False,
+    normalize=True,
     mcv_loss_arr=None,
     n_jobs=-1,
     verbose=False,
     filter_to_hvg=True,
-    metric='information',
+    metric='cosine',
     random_state=50,
 ):
     """
@@ -92,7 +92,7 @@ def program_select(
     :type random_state: int
     :return: Data object with new attributes:
         .var['leiden']: Leiden cluster ID
-        .var['program']: Program ID
+        .var['programs']: Program ID
         .uns['programs']: {
             'metric': Metric name,
             'leiden_correlation': Absolute value of spearman rho

@@ -24,7 +24,7 @@ def aggregate_sliding_window_times(
         lowend, highend = center - half_width, center + half_width
 
         keep_idx = (times >= lowend) & (times <= highend) & ~np.isnan(times)
-        data = expression_data[keep_idx, :]
+        data = expression_data[keep_idx, ...]
 
         try:
             return agg_func(data, **agg_kwargs)

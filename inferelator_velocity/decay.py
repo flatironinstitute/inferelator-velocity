@@ -19,7 +19,7 @@ def calc_decay_sliding_windows(
     n_windows=None,
     centers=None,
     width=None,
-    include_alpha=True,
+    include_alpha=False,
     bootstrap_estimates=False,
     **kwargs
 ):
