@@ -2,6 +2,7 @@ import tqdm
 import numpy as np
 import scipy.sparse as sps
 import scanpy as sc
+import anndata as ad
 from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
@@ -52,44 +53,46 @@ def mcv_pcs(
     with tqdm.tqdm(total=n * (n_pcs + 1)) as pbar:
 
         for i in range(n):
-            A, B = _molecular_split(
+            A, B, n_counts = _molecular_split(
                 count_data,
                 random_seed=random_seed,
                 p=p
             )
 
-            A = _normalize_for_pca(A)
-            B = _normalize_for_pca(B)
+            A = _normalize_for_pca(A, target_sum=n_counts)
+            B = _normalize_for_pca(B, target_sum=n_counts)
 
             # Densify B no matter what
             # So metric doesn't complain
-            if sps.issparse(B):
-                B = B.A
+            if sps.issparse(B.X):
+                B.X = B.X.A
 
             # Calculate PCA
-            A_obsm, A_varm, _, _ = sc.pp.pca(
+            sc.pp.pca(
                 A,
                 n_comps=n_pcs,
-                zero_center=True,
-                return_info=True
+                zero_center=True
             )
 
             # Null model (no PCs)
-            metric_arr[i, 0] = np.sum(B ** 2)
+            metric_arr[i, 0] = np.sum(B.X ** 2)
             pbar.update(1)
 
             # Calculate metric for 1-n_pcs number of PCs
             for j in range(1, n_pcs + 1):
                 metric_arr[i, j] = metric(
-                    B,
-                    A_obsm[:, 0:j] @ A_varm[0:j, :]
+                    B.X,
+                    A.obsm['X_pca'][:, 0:j] @ A.varm['PCs'][:, 0:j].T
                 )
                 pbar.update(1)
 
     return metric_arr
 
 
-def _normalize_for_pca(count_data, copy=True):
+def _normalize_for_pca(
+    count_data,
+    target_sum=None
+):
     """
     Depth normalize and log pseudocount
 
@@ -99,13 +102,12 @@ def _normalize_for_pca(count_data, copy=True):
     :rtype: np.ndarray, sp.sparse.spmatrix
     """
 
-    return sc.pp.log1p(
-        sc.pp.normalize_per_cell(
-            count_data.astype(float),
-            min_counts=0,
-            copy=copy
-        )
+    sc.pp.normalize_total(
+        count_data,
+        target_sum=target_sum
     )
+    sc.pp.log1p(count_data)
+    return count_data
 
 
 def _molecular_split(count_data, random_seed=800, p=0.5):
@@ -129,6 +131,10 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
 
     if sps.issparse(count_data):
 
+        normalization_depth = np.median(
+            count_data.sum(axis=1).A1
+        )
+
         if sps.isspmatrix_csr(count_data):
             mat_func = sps.csr_matrix
         else:
@@ -150,6 +156,10 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
 
     else:
 
+        normalization_depth = np.median(
+            count_data.sum(axis=1)
+        )
+
         cv_data = np.zeros_like(count_data)
 
         for i in range(count_data.shape[0]):
@@ -157,4 +167,7 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
 
         count_data = count_data - cv_data
 
-    return count_data, cv_data
+    count_data = ad.AnnData(count_data)
+    cv_data = ad.AnnData(cv_data)
+
+    return count_data, cv_data, normalization_depth

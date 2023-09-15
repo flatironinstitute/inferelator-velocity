@@ -543,7 +543,7 @@ def _plot_time_histogram(
     # Set plotting values
     cuts = np.linspace(np.nanmin(time_data), np.nanmax(time_data), bins)
     hist_width = cuts[1] - cuts[0]
-    hist_labels = cuts + (0.5 * hist_width)
+    hist_labels = cuts[:-1] + (0.5 * hist_width)
 
     hist_xlim = (
         cuts[0] - hist_width,
@@ -591,8 +591,7 @@ def _plot_time_histogram(
 
     ax.set_ylim(0, hist_limit)
     ax.set_xlim(*hist_xlim)
-    ax.set_xticks()
-    ax.set_xticklabels(
+    ax.set_xticks(
         hist_labels[::10],
         hist_labels[::10].astype(int),
         rotation=90
