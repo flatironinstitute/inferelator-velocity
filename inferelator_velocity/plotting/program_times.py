@@ -3,7 +3,6 @@ from matplotlib import colors
 from matplotlib import cm
 import pandas as pd
 import numpy as np
-from matplotlib.ticker import FormatStrFormatter
 import warnings
 
 from inferelator_velocity.utils.keys import (
@@ -530,17 +529,26 @@ def _plot_time_histogram(
     ax,
     group_order=None,
     group_colors=None,
-    bins=None,
-    xtick_format="%.0f"
+    bins=None
 ):
 
     # Set a default number of bins
     # Integer range or 50, whichever is larger
     if bins is None:
         bins = max(
-            int(np.max(time_data) - np.min(time_data)),
+            int(np.nanmax(time_data) - np.nanmin(time_data)),
             50
         )
+
+    # Set plotting values
+    cuts = np.linspace(np.nanmin(time_data), np.nanmax(time_data), bins)
+    hist_width = cuts[1] - cuts[0]
+    hist_labels = cuts + (0.5 * hist_width)
+
+    hist_xlim = (
+        cuts[0] - hist_width,
+        cuts[-1] + hist_width
+    )
 
     if group_order is None:
         group_order = np.unique(group_data)
@@ -553,7 +561,6 @@ def _plot_time_histogram(
         ]
 
     hist_limit, fref = [], []
-    hist_labels = np.linspace(0.5, bins - 0.5, bins - 1)
 
     bottom_line = None
     for j, hist_data in enumerate(
@@ -572,7 +579,7 @@ def _plot_time_histogram(
             hist_labels,
             hist_data,
             bottom=bottom_line,
-            width=0.5,
+            width=0.5 * hist_width,
             color=group_colors[group_order[j]]
         ))
 
@@ -581,19 +588,13 @@ def _plot_time_histogram(
         hist_limit.append(np.max(np.abs(bottom_line)))
 
     hist_limit = max(hist_limit)
-    n_xtick = int(bins/10) + 1
 
     ax.set_ylim(0, hist_limit)
-    ax.set_xlim(0, bins)
-    ax.set_xticks([x * 10 for x in range(n_xtick)])
+    ax.set_xlim(*hist_xlim)
+    ax.set_xticks()
     ax.set_xticklabels(
-        FormatStrFormatter(xtick_format).format_ticks(
-            np.linspace(
-                np.nanmin(time_data),
-                np.nanmax(time_data),
-                n_xtick
-            )
-        ),
+        hist_labels[::10],
+        hist_labels[::10].astype(int),
         rotation=90
     )
 
