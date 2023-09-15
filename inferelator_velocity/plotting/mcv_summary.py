@@ -12,7 +12,8 @@ def mcv_plot(
     adata,
     program=None,
     ax=None,
-    add_labels=True
+    add_labels=True,
+    text_size=10
 ):
     """
     Generate a summary figure for a specific program from an AnnData object
@@ -62,19 +63,28 @@ def mcv_plot(
         linestyle="--"
     )
 
+    ax.set_xticks(
+        [min_comp, n],
+        [min_comp, n],
+        size=text_size
+    )
+
+    ax.tick_params(
+        axis="both",
+        which="major",
+        labelsize=text_size,
+        labelleft=False
+    )
+
     if add_labels:
         ax.set_ylabel(
-            "MSE"
+            "MSE",
+            size=text_size
         )
 
         ax.set_xlabel(
-            "# Components"
-        )
-
-        ax.annotate(
-            f"{min_comp} Comps.",
-            xy=(0.2, 0.8),
-            xycoords='axes fraction'
+            "# Components",
+            size=text_size
         )
 
     if fig is None:
@@ -87,7 +97,8 @@ def cumulative_variance_plot(
     adata,
     program=None,
     ax=None,
-    add_labels=True
+    add_labels=True,
+    text_size=10
 ):
     """
     Generate a summary figure for a specific program from an AnnData object
@@ -149,11 +160,13 @@ def cumulative_variance_plot(
     if add_labels:
 
         ax.set_ylabel(
-            "% Variance"
+            "% Variance",
+            size=text_size
         )
 
         ax.set_xlabel(
-            "# Components"
+            "# Components",
+            size=text_size
         )
 
     ax.set_ylim(0., None)
