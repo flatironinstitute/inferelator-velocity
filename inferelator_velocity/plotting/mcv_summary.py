@@ -169,7 +169,18 @@ def cumulative_variance_plot(
             size=text_size
         )
 
+    ax.tick_params(
+        axis="both",
+        which="major",
+        labelsize=text_size
+    )
+
     ax.set_ylim(0., None)
+    ax.set_xticks(
+        [0, n],
+        [0, n],
+        size=text_size
+    )
 
     if fig is None:
         return ax
