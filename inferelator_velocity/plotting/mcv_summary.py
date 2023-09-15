@@ -64,8 +64,8 @@ def mcv_plot(
     )
 
     ax.set_xticks(
-        [min_comp, n],
-        [min_comp, n],
+        [min_comp, n - 1],
+        [min_comp, n - 1],
         size=text_size
     )
 
