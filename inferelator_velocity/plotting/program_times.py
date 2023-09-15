@@ -40,7 +40,8 @@ def program_time_summary(
     time_limits=None,
     ax_key_pref=None,
     panel_tags=None,
-    alpha=0.5
+    alpha=0.5,
+    text_size=10
 ):
 
     """
@@ -136,8 +137,10 @@ def program_time_summary(
     cbar_cmap = cm.get_cmap(cbar_cmap, len(cluster_order))
 
     if cluster_colors is None:
-        cluster_colors = {cluster_order[i]: colors.rgb2hex(cbar_cmap(i))
-                          for i in range(len(cluster_order))}
+        cluster_colors = {
+            cluster_order[i]: colors.rgb2hex(cbar_cmap(i))
+            for i in range(len(cluster_order))
+        }
 
     # VECTOR OF COLORS BASED ON CLUSTER LABELS ####
     _color_vector = _get_colors(
@@ -250,11 +253,18 @@ def program_time_summary(
             xy=(0, 0),
             xycoords='data',
             xytext=(0.25, 0.05),
-            textcoords='axes fraction'
+            textcoords='axes fraction',
+            size=text_size
         )
 
-        ax[ax_key_pref + 'pca1'].set_xlabel(f"PC1 ({_var_exp[0]:.1f}%)")
-        ax[ax_key_pref + 'pca1'].set_ylabel(f"PC2 ({_var_exp[1]:.1f}%)")
+        ax[ax_key_pref + 'pca1'].set_xlabel(
+            f"PC1 ({_var_exp[0]:.1f}%)",
+            size=text_size
+        )
+        ax[ax_key_pref + 'pca1'].set_ylabel(
+            f"PC2 ({_var_exp[1]:.1f}%)",
+            size=text_size
+        )
 
     # BUILD PC1/PC3 PLOT ####
     if ax_key_pref + 'pca2' in ax:
@@ -267,8 +277,14 @@ def program_time_summary(
             alpha=alpha
         )
 
-        ax[ax_key_pref + 'pca2'].set_xlabel(f"PC1 ({_var_exp[0]:.1f}%)")
-        ax[ax_key_pref + 'pca2'].set_ylabel(f"PC3 ({_var_exp[2]:.1f}%)")
+        ax[ax_key_pref + 'pca2'].set_xlabel(
+            f"PC1 ({_var_exp[0]:.1f}%)",
+            size=text_size
+        )
+        ax[ax_key_pref + 'pca2'].set_ylabel(
+            f"PC3 ({_var_exp[2]:.1f}%)",
+            size=text_size
+        )
 
     # BUILD CLUSTER-CLUSTER PC1/PC2 PLOTS ####
     for i, _pname in enumerate(_panels):
@@ -291,7 +307,7 @@ def program_time_summary(
                     alpha=alpha
                 )
 
-                ax[ax_key_pref + _pname].set_ylabel("PC2")
+                ax[ax_key_pref + _pname].set_ylabel("PC2", size=text_size)
 
             else:
                 refs[ax_key_pref + 'group' + _pname] = _plot_time_histogram(
@@ -302,10 +318,10 @@ def program_time_summary(
                     group_colors=cluster_colors,
                 )
 
-                ax[ax_key_pref + _pname].set_ylabel("# Cells")
+                ax[ax_key_pref + _pname].set_ylabel("# Cells", size=text_size)
 
-            ax[ax_key_pref + _pname].set_title(_pname)
-            ax[ax_key_pref + _pname].set_xlabel("PC1")
+            ax[ax_key_pref + _pname].set_title(_pname, size=text_size)
+            ax[ax_key_pref + _pname].set_xlabel("PC1", size=text_size)
 
     # BUILD TIME HISTOGRAM PLOT ####
     if ax_key_pref + 'hist' in ax:
@@ -349,7 +365,12 @@ def program_time_summary(
     if panel_tags:
         for _k, _title in panel_tags.items():
             if _k in ax:
-                ax[_k].set_title(_title, loc='left', weight='bold')
+                ax[_k].set_title(
+                    _title,
+                    loc='left',
+                    weight='bold',
+                    size=text_size
+                )
 
     if fig is not None:
         return fig, ax
