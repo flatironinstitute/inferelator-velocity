@@ -81,6 +81,18 @@ def knn_noise2self(
     neighbors = N_NEIGHBORS if neighbors is None else neighbors
     npcs = N_PCS if npcs is None else npcs
 
+    if not np.issubdtype(neighbors.dtype, np.integer):
+        raise ValueError(
+            "k-NN graph requires k to be integers; "
+            f"{neighbors.dtype} provided"
+        )
+
+    if not np.issubdtype(npcs.dtype, np.integer):
+        raise ValueError(
+            "n_pcs must be integers; "
+            f"{npcs.dtype} provided"
+        )
+
     vprint(
         f"Searching {len(npcs)} PC x {len(neighbors)} Neighbors space",
         verbose=verbose

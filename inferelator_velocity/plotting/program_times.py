@@ -1,6 +1,6 @@
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import colors
-from matplotlib import cm
 import pandas as pd
 import numpy as np
 import warnings
@@ -133,7 +133,7 @@ def program_time_summary(
     if cbar_cmap is None:
         cbar_cmap = DEFAULT_CMAP
 
-    cbar_cmap = cm.get_cmap(cbar_cmap, len(cluster_order))
+    cbar_cmap = matplotlib.colormaps[cbar_cmap]
 
     if cluster_colors is None:
         cluster_colors = {
@@ -554,7 +554,7 @@ def _plot_time_histogram(
         group_order = np.unique(group_data)
 
     if group_colors is None:
-        _cmap = cm.get_cmap(DEFAULT_CMAP, len(group_order))
+        _cmap = matplotlib.colormaps[DEFAULT_CMAP]
         group_colors = [
             colors.rgb2hex(_cmap(i))
             for i in range(len(group_order))
