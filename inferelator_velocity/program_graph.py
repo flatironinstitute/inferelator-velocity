@@ -78,6 +78,7 @@ def global_graph(
 
     data.uns[NOISE2SELF_KEY]['npcs'] = npc
     data.uns[NOISE2SELF_KEY]['neighbors'] = nn
+    data.uns[NOISE2SELF_KEY]['local_neighbors'] = nk
 
 
 def program_graphs(
@@ -174,5 +175,6 @@ def program_graphs(
 
         data.uns[PROGRAM_KEY][_uns_prog_key]['npcs'] = npc
         data.uns[PROGRAM_KEY][_uns_prog_key]['neighbors'] = nn
+        data.uns[PROGRAM_KEY][_uns_prog_key]['local_neighbors'] = nk
 
     return data

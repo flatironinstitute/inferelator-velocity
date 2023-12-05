@@ -171,6 +171,7 @@ def calculate_times(
     count_data,
     cluster_vector,
     cluster_order_dict,
+    normalize_data=True,
     wrap_time=None,
     n_neighbors=10,
     n_comps=None,
@@ -239,9 +240,10 @@ def calculate_times(
         _mcv_error = None
 
     # Construct an adata object and normalize it
-    adata = standardize_data(
-        ad.AnnData(count_data.astype(float))
-    )
+    adata = ad.AnnData(count_data.astype(float))
+
+    if normalize_data:
+        adata = standardize_data(adata)
 
     # Calculate chosen PCA & neighbor graph
     sc.pp.pca(adata, n_comps=n_comps, zero_center=True)
