@@ -10,13 +10,35 @@ from sklearn.metrics import (
 )
 
 
+def _normalize_for_pca(
+    count_data,
+    target_sum=None
+):
+    """
+    Depth normalize and log pseudocount
+
+    :param count_data: Integer data
+    :type count_data: np.ndarray, sp.sparse.spmatrix
+    :return: Standardized data
+    :rtype: np.ndarray, sp.sparse.spmatrix
+    """
+
+    sc.pp.normalize_total(
+        count_data,
+        target_sum=target_sum
+    )
+    sc.pp.log1p(count_data)
+    return count_data
+
+
 def mcv_pcs(
     count_data,
     n=5,
     n_pcs=100,
     random_seed=800,
     p=0.5,
-    metric='mse'
+    metric='mse',
+    normalize_function=_normalize_for_pca
 ):
     """
     Calculate a loss metric based on molecular crossvalidation
@@ -59,8 +81,8 @@ def mcv_pcs(
                 p=p
             )
 
-            A = _normalize_for_pca(A, target_sum=n_counts)
-            B = _normalize_for_pca(B, target_sum=n_counts)
+            A = normalize_function(A, target_sum=n_counts)
+            B = normalize_function(B, target_sum=n_counts)
 
             # Densify B no matter what
             # So metric doesn't complain
@@ -87,27 +109,6 @@ def mcv_pcs(
                 pbar.update(1)
 
     return metric_arr
-
-
-def _normalize_for_pca(
-    count_data,
-    target_sum=None
-):
-    """
-    Depth normalize and log pseudocount
-
-    :param count_data: Integer data
-    :type count_data: np.ndarray, sp.sparse.spmatrix
-    :return: Standardized data
-    :rtype: np.ndarray, sp.sparse.spmatrix
-    """
-
-    sc.pp.normalize_total(
-        count_data,
-        target_sum=target_sum
-    )
-    sc.pp.log1p(count_data)
-    return count_data
 
 
 def _molecular_split(count_data, random_seed=800, p=0.5):
