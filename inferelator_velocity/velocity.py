@@ -27,7 +27,7 @@ def calc_velocity(
                 (n_idx == i).nonzero()[0][0],
                 wrap_time=wrap_time
             )
-            for i, n_idx in _find_local(expr, neighbor_graph)
+            for i, n_idx in _find_local(neighbor_graph)
         ]
     )
 
@@ -93,18 +93,18 @@ def _calc_local_velocity(
     return _np.dot(x_for_hat, y_diff)
 
 
-def _find_local(expr, neighbor_graph):
+def _find_local(neighbor_graph):
     """
-    Find a return an expression matrix for a locally connected graph
+    Find a return indices from a locally connected graph
 
-    :param expr: Samples x Genes numpy or scipy with expression data
-    :type expr: np.ndarray, sp.sparse.csr_matrix
     :param neighbor_graph: Samples x Samples connectivity matrix,
         where any non-zero value is connected.
-    :return:
+    :type neighbor_graph: np.ndarray, sp.sparse.spmatrix
+    :yield: Center index, connected indices
+    :rtype: int, np.ndarray
     """
 
-    n, m = expr.shape
+    n, _ = neighbor_graph.shape
     neighbor_sparse = _is_sparse(neighbor_graph)
 
     for i in trange(n):

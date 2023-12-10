@@ -43,7 +43,8 @@ def knn_noise2self(
     metric='euclidean',
     return_errors=False,
     use_sparse=True,
-    connectivity=False
+    connectivity=False,
+    standardize_count_data=True
 ):
     """
     Select an optimal set of graph parameters based on noise2self
@@ -100,8 +101,10 @@ def knn_noise2self(
 
     data_obj = ad.AnnData(count_data.astype(np.float32))
 
-    sc.pp.normalize_per_cell(data_obj)
-    sc.pp.log1p(data_obj)
+    if standardize_count_data:
+        sc.pp.normalize_per_cell(data_obj)
+        sc.pp.log1p(data_obj)
+
     sc.pp.pca(data_obj, n_comps=np.max(npcs), zero_center=True)
 
     mses = np.zeros((len(npcs), len(neighbors)))
