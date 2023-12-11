@@ -164,7 +164,7 @@ def get_bins(data, n_bins=None, centers=None, width=None):
     return centers, half_width
 
 
-def copy_count_layer(data, layer):
+def copy_count_layer(data, layer, counts_layer=None):
 
     lref = data.X if layer == 'X' else data.layers[layer]
 
@@ -177,9 +177,26 @@ def copy_count_layer(data, layer):
             "these results will be nonsense."
         )
 
-    d = ad.AnnData(lref.astype(float))
-    d.layers['counts'] = lref.copy()
-    d.var = data.var.copy()
+    d = ad.AnnData(
+        lref,
+        var=data.var
+    )
+
+    if counts_layer is None:
+        d.layers['counts'] = lref.copy()
+    else:
+        d.layers['counts'] = data.layers[counts_layer]
+
+    if not pat.is_integer_dtype(d.X.dtype):
+        warnings.warn(
+            "Count data is expected, "
+            f"but {d.layers['counts'].dtype} data has been passed. "
+            "This data will be normalized and processed "
+            "as count data. If it is not count data, "
+            "these results will be nonsense."
+        )
+
+    d.X = d.X.astype(float)
 
     return d
 

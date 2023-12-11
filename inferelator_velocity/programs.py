@@ -44,6 +44,7 @@ def program_select(
     n_programs=2,
     n_comps=None,
     layer="X",
+    count_layer=None,
     normalize=True,
     mcv_loss_arr=None,
     n_jobs=-1,
@@ -109,7 +110,7 @@ def program_select(
 
     # CREATE A NEW DATA OBJECT FOR THIS ANALYSIS #
 
-    d = copy_count_layer(data, layer)
+    d = copy_count_layer(data, layer, counts_layer=count_layer)
 
     # PREPROCESSING / NORMALIZATION #
 

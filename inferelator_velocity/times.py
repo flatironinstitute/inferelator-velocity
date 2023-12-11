@@ -47,7 +47,8 @@ def program_times(
     program_var_key=PROGRAM_KEY,
     programs=None,
     n_comps=None,
-    verbose=False
+    verbose=False,
+    standardize_count_data=True
 ):
     """
     Calcuate times for each cell based on known cluster time values
@@ -148,7 +149,8 @@ def program_times(
             return_components=True,
             verbose=verbose,
             n_comps=n_comps if n_comps is None else n_comps[prog],
-            wrap_time=wrap_time[prog] if wrap_time is not None else None
+            wrap_time=wrap_time[prog] if wrap_time is not None else None,
+            normalize_data=standardize_count_data
         )
 
         # Add keys to the .uns object
