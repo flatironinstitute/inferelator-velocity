@@ -6,7 +6,10 @@ import tqdm
 
 from .graph import set_diag, local_optimal_knn
 from .math import mean_squared_error
-from .misc import vprint
+from .misc import (
+    vprint,
+    standardize_data
+)
 
 try:
     from sparse_dot_mkl import dot_product_mkl as dot
@@ -44,7 +47,7 @@ def knn_noise2self(
     return_errors=False,
     use_sparse=True,
     connectivity=False,
-    standardize_count_data=True
+    standardization_method='log'
 ):
     """
     Select an optimal set of graph parameters based on noise2self
@@ -99,11 +102,10 @@ def knn_noise2self(
         verbose=verbose
     )
 
-    data_obj = ad.AnnData(count_data.astype(np.float32))
-
-    if standardize_count_data:
-        sc.pp.normalize_per_cell(data_obj)
-        sc.pp.log1p(data_obj)
+    data_obj = standardize_data(
+        ad.AnnData(count_data.astype(np.float32)),
+        method=standardization_method
+    )
 
     sc.pp.pca(data_obj, n_comps=np.max(npcs), zero_center=True)
 

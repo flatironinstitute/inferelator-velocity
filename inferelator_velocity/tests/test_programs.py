@@ -206,7 +206,7 @@ class TestAssignGenesBasedOnTime(unittest.TestCase):
 
         new_program_labels = assign_genes_to_programs(
             adata,
-            normalize=False
+            standardization_method=None
         )
 
         self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)
@@ -216,7 +216,7 @@ class TestAssignGenesBasedOnTime(unittest.TestCase):
             use_existing_programs=False,
             verbose=True,
             return_mi=True,
-            normalize=False
+            standardization_method=None
         )
 
         self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)
@@ -235,7 +235,7 @@ class TestAssignGenesBasedOnTime(unittest.TestCase):
 
         new_program_labels = assign_genes_to_programs(
             adata,
-            normalize=False,
+            standardization_method=None,
             verbose=True
         )
 
@@ -246,7 +246,7 @@ class TestAssignGenesBasedOnTime(unittest.TestCase):
             use_existing_programs=False,
             verbose=True,
             return_mi=True,
-            normalize=False
+            standardization_method=None
         )
 
         self.assertListEqual(new_program_labels.tolist(), PROGRAMS_ASSIGNED)

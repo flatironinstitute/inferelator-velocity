@@ -1,8 +1,10 @@
 import numpy as np
-import scanpy as sc
 import scipy.sparse as sps
 
-from inferelator_velocity.utils.misc import vprint
+from inferelator_velocity.utils.misc import (
+    vprint,
+    standardize_data
+)
 
 from .utils import (
     copy_count_layer,
@@ -25,7 +27,6 @@ from .utils.keys import (
 def assign_genes_to_programs(
     data,
     layer="X",
-    normalize=True,
     programs=None,
     use_existing_programs=None,
     return_mi=False,
@@ -33,7 +34,8 @@ def assign_genes_to_programs(
     default_threshold=None,
     n_bins=N_BINS,
     use_sparse=True,
-    verbose=False
+    verbose=False,
+    standardization_method='log'
 ):
     """
     Assign genes to programs based on the maximum mutual information
@@ -43,8 +45,8 @@ def assign_genes_to_programs(
     :type data: ad.AnnData
     :param layer: Layer containing count data, defaults to "X"
     :type layer: str, optional
-    :param normalize: Normalize per cell and log, defaults to True
-    :type normalize: bool
+    :param standardization_method: Normalize per cell and log, defaults to 'log'
+    :type standardization_method: str, optional
     :param programs: Program IDs to calculate times for, defaults to None
     :type programs: tuple, optional
     :param use_existing_programs: Program IDs to take from original
@@ -106,11 +108,10 @@ def assign_genes_to_programs(
         else:
             return old_labels
 
-    d = copy_count_layer(data, layer)
-
-    if normalize:
-        sc.pp.normalize_per_cell(d)
-        sc.pp.log1p(d)
+    d = standardize_data(
+        copy_count_layer(data, layer),
+        method=standardization_method
+    )
 
     _times = np.zeros((d.shape[0], len(programs)))
 

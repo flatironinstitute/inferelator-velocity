@@ -18,7 +18,7 @@ from .utils.keys import (
 def global_graph(
     data,
     layer="X",
-    standardize_layer_data=True,
+    standardization_method='log',
     neighbors=None,
     npcs=None,
     use_sparse=True,
@@ -32,8 +32,9 @@ def global_graph(
     :type data: ad.AnnData
     :param layer: Layer to use for kNN, defaults to "X"
     :type layer: str, optional
-    :param standardize_layer_data: Depth-normalize and log1p data
-    :type standardize_layer_data: bool, optional
+    :param standardization_method: Depth-normalize and log1p data ('log')
+        or depth-normalize and run robust scaler ('scale'). Defaults to 'log'.
+    :type standardization_method: str, optional
     :param neighbors: Search space for k neighbors,
         defaults to 15 - 105 by 10
     :type neighbors: np.ndarray, optional
@@ -67,7 +68,7 @@ def global_graph(
         verbose=verbose,
         use_sparse=use_sparse,
         connectivity=connectivity,
-        standardize_count_data=standardize_layer_data
+        standardization_method=standardization_method
     )
 
     vprint(
