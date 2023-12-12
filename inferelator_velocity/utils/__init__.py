@@ -4,7 +4,8 @@ from .misc import (
     get_bins,
     copy_count_layer,
     standardize_data,
-    ragged_lists_to_array
+    ragged_lists_to_array,
+    TruncRobustScaler
 )
 from .aggregation import aggregate_sliding_window_times
 from .graph import local_optimal_knn

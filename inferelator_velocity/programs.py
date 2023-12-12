@@ -45,13 +45,14 @@ def program_select(
     n_comps=None,
     layer="X",
     count_layer=None,
-    normalize=True,
+    standardization_method='log',
     mcv_loss_arr=None,
     n_jobs=-1,
     verbose=False,
     filter_to_hvg=True,
     metric='cosine',
     random_state=50,
+    mcv_kwargs={}
 ):
     """
     Find a specific number of gene programs based on information distance
@@ -114,8 +115,10 @@ def program_select(
 
     # PREPROCESSING / NORMALIZATION #
 
-    if normalize:
-        standardize_data(d)
+    standardize_data(
+        d,
+        method=standardization_method
+    )
 
     if filter_to_hvg:
 
@@ -148,7 +151,8 @@ def program_select(
             mcv_loss_arr = mcv_pcs(
                 d.layers['counts'],
                 n=1,
-                n_pcs=min(d.shape[1] - 1, 100)
+                n_pcs=min(d.shape[1] - 1, 100),
+                **mcv_kwargs
             )
 
         if mcv_loss_arr.ndim == 2:

@@ -5,6 +5,11 @@ import scanpy as sc
 import pandas.api.types as pat
 import warnings
 
+from sklearn.preprocessing import (
+    RobustScaler,
+    StandardScaler
+)
+
 
 def order_dict_to_lists(order_dict):
     """
@@ -201,12 +206,91 @@ def copy_count_layer(data, layer, counts_layer=None):
     return d
 
 
-def standardize_data(adata):
+class TruncRobustScaler(RobustScaler):
 
-    sc.pp.normalize_per_cell(adata, min_counts=0)
-    sc.pp.log1p(adata)
+    def fit(self, X, y=None):
+        super().fit(X, y)
 
-    return adata
+        # Use StandardScaler to deal with sparse & dense easily
+        _std_scale = StandardScaler(with_mean=False).fit(X)
+
+        _post_robust_var = _std_scale.var_ / (self.scale_ ** 2)
+        _rescale_idx = _post_robust_var > 1
+
+        _scale_mod = np.ones_like(self.scale_)
+        _scale_mod[_rescale_idx] = np.sqrt(_post_robust_var[_rescale_idx])
+
+        self.scale_ *= _scale_mod
+
+        return self
+
+
+def _normalize_for_pca_log(
+    count_data,
+    target_sum=None
+):
+    """
+    Depth normalize and log pseudocount
+
+    :param count_data: Integer data
+    :type count_data: ad.AnnData
+    :return: Standardized data
+    :rtype: np.ad.AnnData
+    """
+
+    sc.pp.normalize_total(
+        count_data,
+        target_sum=target_sum
+    )
+    sc.pp.log1p(count_data)
+    return count_data
+
+
+def _normalize_for_pca_scale(
+    count_data,
+    target_sum=None
+):
+    """
+    Depth normalize and scale using truncated robust scaling
+
+    :param count_data: Integer data
+    :type count_data: ad.AnnData
+    :return: Standardized data
+    :rtype: ad.AnnData
+    """
+
+    sc.pp.normalize_total(
+        count_data,
+        target_sum=target_sum
+    )
+    count_data.X = TruncRobustScaler(with_centering=False).fit_transform(
+        count_data.X
+    )
+    return count_data
+
+
+def standardize_data(
+    count_data,
+    target_sum=None,
+    method='log'
+):
+
+    if method == 'log':
+        return _normalize_for_pca_log(
+            count_data,
+            target_sum
+        )
+    elif method == 'scale':
+        return _normalize_for_pca_scale(
+            count_data,
+            target_sum
+        )
+    elif method is None:
+        return count_data
+    else:
+        raise ValueError(
+            f'method must be `log` or `scale`, {method} provided'
+        )
 
 
 def ragged_lists_to_array(

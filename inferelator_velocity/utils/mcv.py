@@ -8,27 +8,7 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score
 )
-
-
-def _normalize_for_pca(
-    count_data,
-    target_sum=None
-):
-    """
-    Depth normalize and log pseudocount
-
-    :param count_data: Integer data
-    :type count_data: np.ndarray, sp.sparse.spmatrix
-    :return: Standardized data
-    :rtype: np.ndarray, sp.sparse.spmatrix
-    """
-
-    sc.pp.normalize_total(
-        count_data,
-        target_sum=target_sum
-    )
-    sc.pp.log1p(count_data)
-    return count_data
+from .misc import standardize_data
 
 
 def mcv_pcs(
@@ -38,7 +18,7 @@ def mcv_pcs(
     random_seed=800,
     p=0.5,
     metric='mse',
-    normalize_function=_normalize_for_pca
+    standardization_method='log'
 ):
     """
     Calculate a loss metric based on molecular crossvalidation
@@ -81,8 +61,16 @@ def mcv_pcs(
                 p=p
             )
 
-            A = normalize_function(A, target_sum=n_counts)
-            B = normalize_function(B, target_sum=n_counts)
+            A = standardize_data(
+                A,
+                target_sum=n_counts,
+                method=standardization_method
+            )
+            B = standardize_data(
+                B,
+                target_sum=n_counts,
+                method=standardization_method
+            )
 
             # Densify B no matter what
             # So metric doesn't complain

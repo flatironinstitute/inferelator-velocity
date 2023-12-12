@@ -48,7 +48,7 @@ def program_times(
     programs=None,
     n_comps=None,
     verbose=False,
-    standardize_count_data=True
+    standardization_method='log'
 ):
     """
     Calcuate times for each cell based on known cluster time values
@@ -150,7 +150,7 @@ def program_times(
             verbose=verbose,
             n_comps=n_comps if n_comps is None else n_comps[prog],
             wrap_time=wrap_time[prog] if wrap_time is not None else None,
-            normalize_data=standardize_count_data
+            standardization_method=standardization_method
         )
 
         # Add keys to the .uns object
@@ -173,13 +173,14 @@ def calculate_times(
     count_data,
     cluster_vector,
     cluster_order_dict,
-    normalize_data=True,
+    standardization_method='log',
     wrap_time=None,
     n_neighbors=10,
     n_comps=None,
     graph_method="D",
     return_components=False,
-    verbose=False
+    verbose=False,
+    mcv_kwargs={}
 ):
     """
     Calculate times for each cell based on count data and a known set
@@ -236,16 +237,16 @@ def calculate_times(
     # If the number of components to use is not provided,
     # Do molecular crossvalidation
     if n_comps is None:
-        _mcv_error = mcv_pcs(count_data, n=1)
+        _mcv_error = mcv_pcs(count_data, n=1, **mcv_kwargs)
         n_comps = np.median(_mcv_error, axis=0).argmin()
     else:
         _mcv_error = None
 
     # Construct an adata object and normalize it
-    adata = ad.AnnData(count_data.astype(float))
-
-    if normalize_data:
-        adata = standardize_data(adata)
+    adata = standardize_data(
+        ad.AnnData(count_data.astype(float)),
+        method=standardization_method
+    )
 
     # Calculate chosen PCA & neighbor graph
     sc.pp.pca(adata, n_comps=n_comps, zero_center=True)

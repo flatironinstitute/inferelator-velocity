@@ -164,7 +164,7 @@ class TestProgram(unittest.TestCase):
             adata,
             verbose=True,
             filter_to_hvg=False,
-            normalize=False,
+            standardization_method=None,
             metric='information'
         )
 
@@ -184,7 +184,7 @@ class TestProgram(unittest.TestCase):
             adata,
             verbose=True,
             filter_to_hvg=False,
-            normalize=False,
+            standardization_method=None,
             metric='euclidean'
         )
 
@@ -262,7 +262,7 @@ class TestProgramPlot(unittest.TestCase):
             adata,
             verbose=True,
             filter_to_hvg=False,
-            normalize=False
+            standardization_method=None
         )
 
         f, a = programs_summary(adata)
