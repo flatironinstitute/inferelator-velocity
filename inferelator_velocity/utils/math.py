@@ -2,6 +2,28 @@ import numpy as np
 import scipy.sparse as sps
 from .misc import make_vector_2D
 
+try:
+    from sparse_dot_mkl import dot_product_mkl as dot
+
+except ImportError as err:
+
+    import warnings
+
+    warnings.warn(
+        "Unable to use MKL for sparse matrix math, "
+        "defaulting to numpy/scipy matmul: "
+        f"{str(err)}"
+    )
+
+    def dot(x, y, dense=False, cast=False):
+
+        z = x @ y
+
+        if dense and sps.issparse(z):
+            z = z.A
+
+        return z
+
 
 def scalar_projection(
         data,

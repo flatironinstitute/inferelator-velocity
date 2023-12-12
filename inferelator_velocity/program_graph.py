@@ -95,7 +95,8 @@ def program_graphs(
     npcs=None,
     use_sparse=True,
     connectivity=False,
-    verbose=False
+    verbose=False,
+    standardization_method='log'
 ):
     """
     Embed neighbor graphs for each program
@@ -159,7 +160,8 @@ def program_graphs(
             npcs=npcs,
             verbose=verbose,
             use_sparse=use_sparse,
-            connectivity=connectivity
+            connectivity=connectivity,
+            standardization_method=standardization_method
         )
 
         vprint(

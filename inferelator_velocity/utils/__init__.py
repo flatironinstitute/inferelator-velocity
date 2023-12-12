@@ -14,10 +14,12 @@ from .noise2self import knn_noise2self
 from .math import (
     variance,
     coefficient_of_variation,
-    mean_squared_error
+    mean_squared_error,
+    dot
 )
 
 import numpy as _np
+
 
 def is_iterable_arg(x):
     """

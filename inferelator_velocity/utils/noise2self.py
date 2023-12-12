@@ -5,33 +5,14 @@ import scipy.sparse as sps
 import tqdm
 
 from .graph import set_diag, local_optimal_knn
-from .math import mean_squared_error
+from .math import (
+    mean_squared_error,
+    dot
+)
 from .misc import (
     vprint,
     standardize_data
 )
-
-try:
-    from sparse_dot_mkl import dot_product_mkl as dot
-
-except ImportError as err:
-
-    import warnings
-
-    warnings.warn(
-        "Unable to use MKL for sparse matrix math, "
-        "defaulting to numpy/scipy matmul: "
-        f"{str(err)}"
-    )
-
-    def dot(x, y, dense=False, cast=False):
-
-        z = x @ y
-
-        if dense and sps.issparse(z):
-            z = z.A
-
-        return z
 
 
 N_PCS = np.arange(5, 115, 10)
