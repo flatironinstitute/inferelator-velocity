@@ -23,7 +23,8 @@ def global_graph(
     npcs=None,
     use_sparse=True,
     connectivity=False,
-    verbose=False
+    verbose=False,
+    **kwargs
 ):
     """
     Generate a k-NN graph for data using noise2self
@@ -68,7 +69,8 @@ def global_graph(
         verbose=verbose,
         use_sparse=use_sparse,
         connectivity=connectivity,
-        standardization_method=standardization_method
+        standardization_method=standardization_method,
+        **kwargs
     )
 
     vprint(
@@ -96,7 +98,8 @@ def program_graphs(
     use_sparse=True,
     connectivity=False,
     verbose=False,
-    standardization_method='log'
+    standardization_method='log',
+    **kwargs
 ):
     """
     Embed neighbor graphs for each program
@@ -161,7 +164,8 @@ def program_graphs(
             verbose=verbose,
             use_sparse=use_sparse,
             connectivity=connectivity,
-            standardization_method=standardization_method
+            standardization_method=standardization_method,
+            **kwargs
         )
 
         vprint(

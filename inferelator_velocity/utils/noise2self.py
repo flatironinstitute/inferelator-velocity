@@ -6,8 +6,8 @@ import tqdm
 
 from .graph import set_diag, local_optimal_knn
 from .math import (
-    mean_squared_error,
-    dot
+    dot,
+    pairwise_metric
 )
 from .misc import (
     vprint,
@@ -25,10 +25,12 @@ def knn_noise2self(
     npcs=None,
     verbose=False,
     metric='euclidean',
+    loss='mse',
     return_errors=False,
     use_sparse=True,
     connectivity=False,
-    standardization_method='log'
+    standardization_method='log',
+    loss_kwargs={}
 ):
     """
     Select an optimal set of graph parameters based on noise2self
@@ -129,7 +131,9 @@ def knn_noise2self(
             data_obj.obsp['distances'],
             neighbors,
             X_compare=expr_data,
-            connectivity=connectivity
+            connectivity=connectivity,
+            loss=loss,
+            loss_kwargs=loss_kwargs
         )
 
     # Get the index of the optimal PCs and k based on
@@ -167,7 +171,9 @@ def knn_noise2self(
             by_row=True,
             X_compare=expr_data,
             pbar=True,
-            connectivity=connectivity
+            connectivity=connectivity,
+            loss=loss,
+            loss_kwargs=loss_kwargs
         ),
         axis=0
     )]
@@ -220,6 +226,8 @@ def _search_k(
     graph,
     k,
     by_row=False,
+    loss='mse',
+    loss_kwargs={},
     X_compare=None,
     pbar=False,
     connectivity=False
@@ -270,10 +278,12 @@ def _search_k(
         k_graph = row_normalize(k_graph)
 
         # Calculate mean squared error
-        mses[i] = mean_squared_error(
+        mses[i] = pairwise_metric(
             X_compare,
             dot(k_graph, X, dense=not sps.issparse(X_compare)),
-            by_row=by_row
+            by_row=by_row,
+            metric=loss,
+            **loss_kwargs
         )
 
     return mses

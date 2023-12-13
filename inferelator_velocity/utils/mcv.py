@@ -3,12 +3,13 @@ import numpy as np
 import scipy.sparse as sps
 import scanpy as sc
 import anndata as ad
-from sklearn.metrics import (
-    mean_absolute_error,
-    mean_squared_error,
-    r2_score
+
+from .misc import (
+    standardize_data
 )
-from .misc import standardize_data
+from .math import (
+    pairwise_metric
+)
 
 
 def mcv_pcs(
@@ -18,7 +19,8 @@ def mcv_pcs(
     random_seed=800,
     p=0.5,
     metric='mse',
-    standardization_method='log'
+    standardization_method='log',
+    metric_kwargs={}
 ):
     """
     Calculate a loss metric based on molecular crossvalidation
@@ -39,13 +41,6 @@ def mcv_pcs(
     :return: An n x n_pcs array of metric results
     :rtype: np.ndarray
     """
-
-    if metric == 'mse':
-        metric = mean_squared_error
-    elif metric == 'mae':
-        metric = mean_absolute_error
-    elif metric == 'r2':
-        metric = r2_score
 
     n_pcs = min(n_pcs, *map(lambda x: x - 1, count_data.shape))
 
@@ -90,9 +85,11 @@ def mcv_pcs(
 
             # Calculate metric for 1-n_pcs number of PCs
             for j in range(1, n_pcs + 1):
-                metric_arr[i, j] = metric(
+                metric_arr[i, j] = pairwise_metric(
                     B.X,
-                    A.obsm['X_pca'][:, 0:j] @ A.varm['PCs'][:, 0:j].T
+                    A.obsm['X_pca'][:, 0:j] @ A.varm['PCs'][:, 0:j].T,
+                    metric=metric,
+                    **metric_kwargs
                 )
                 pbar.update(1)
 

@@ -14,7 +14,6 @@ from .noise2self import knn_noise2self
 from .math import (
     variance,
     coefficient_of_variation,
-    mean_squared_error,
     dot
 )
 

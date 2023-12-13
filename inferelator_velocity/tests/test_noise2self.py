@@ -44,16 +44,25 @@ NOISE = RNG.negative_binomial(
 )
 
 EXPR = BASE + NOISE
+PEAKS = RNG.choice([0, 1], (M, N), p=(0.9, 0.1))
+
 DIST = sklearn.metrics.pairwise_distances(EXPR, metric='cosine')
+PDIST = sklearn.metrics.pairwise_distances(PEAKS, metric='cosine')
 
 ADATA = ad.AnnData(EXPR.astype(int))
 
 
 def _knn(k):
-    return local_optimal_knn(sps.csr_matrix(DIST), np.array([k] * 100), keep='smallest')
+    return local_optimal_knn(
+        sps.csr_matrix(DIST),
+        np.array([k] * 100),
+        keep='smallest'
+    )
 
 
 class TestRowStochastic(unittest.TestCase):
+
+    loss = 'mse'
 
     def test_full_k(self):
         graph = sps.csr_matrix(DIST)
@@ -124,68 +133,118 @@ class TestRowStochastic(unittest.TestCase):
 
 class TestKNNSearch(unittest.TestCase):
 
+    data = EXPR.astype(float)
+    dist = DIST.copy()
+    normalize = 'log'
+    loss = 'mse'
+    correct_loss = np.array([
+        234.314,
+        166.83420601,
+        149.88290938,
+        143.72348837,
+        138.18590639,
+        139.83859323
+    ])
+    correct_mse_argmin = 4
+    correct_opt_pc = 3
+    correct_opt_k = 4
+
     def test_ksearch_regression(self):
 
-        mse = _search_k(EXPR.astype(float), DIST, np.arange(1, 7))
-        self.assertEqual(np.argmin(mse), 4)
+        mse = _search_k(
+            self.data,
+            self.dist,
+            np.arange(1, 7),
+            loss=self.loss
+        )
+        print(mse)
+
+        self.assertEqual(np.argmin(mse), self.correct_mse_argmin)
 
         npt.assert_almost_equal(
-            np.array([234.314, 166.83420601, 149.88290938, 143.72348837, 138.18590639, 139.83859323]),
+            self.correct_loss,
             mse
         )
 
     def test_ksearch_regression_sparse(self):
 
         mse = _search_k(
-            sps.csr_matrix(EXPR).astype(float),
-            DIST,
+            sps.csr_matrix(self.data),
+            self.dist,
             np.arange(1, 7),
-            X_compare=EXPR.astype(float)
+            X_compare=self.data,
+            loss=self.loss
         )
 
-        self.assertEqual(np.argmin(mse), 4)
+        print(mse)
+        self.assertEqual(np.argmin(mse), self.correct_mse_argmin)
 
         npt.assert_almost_equal(
-            np.array([234.314, 166.83420601, 149.88290938, 143.72348837, 138.18590639, 139.83859323]),
+            self.correct_loss,
             mse
         )
 
     def test_knn_select_stack_regression(self):
 
         _, opt_pc, opt_k, local_ks = knn_noise2self(
-            EXPR,
+            self.data,
             np.arange(1, 11),
             np.array([3, 5, 7]),
-            verbose=True
+            verbose=True,
+            loss=self.loss,
+            standardization_method=self.normalize
         )
 
-        self.assertEqual(opt_pc, 3)
-        self.assertEqual(opt_k, 4)
+        self.assertEqual(opt_pc, self.correct_opt_pc)
+        self.assertEqual(opt_k, self.correct_opt_k)
 
     def test_knn_select_stack_regression_sparse(self):
 
         _, opt_pc, opt_k, local_ks = knn_noise2self(
-            sps.csr_matrix(EXPR),
+            sps.csr_matrix(self.data),
             np.arange(1, 11),
             np.array([3, 5, 7]),
-            verbose=True
+            verbose=True,
+            loss=self.loss,
+            standardization_method=self.normalize
         )
 
-        self.assertEqual(opt_pc, 3)
-        self.assertEqual(opt_k, 4)
+        self.assertEqual(opt_pc, self.correct_opt_pc)
+        self.assertEqual(opt_k, self.correct_opt_k)
 
     def test_knn_select_stack_regression_sparse_but_flagged(self):
 
         _, opt_pc, opt_k, local_ks = knn_noise2self(
-            sps.csr_matrix(EXPR),
+            sps.csr_matrix(self.data),
             np.arange(1, 11),
             np.array([3, 5, 7]),
             verbose=True,
-            use_sparse=False
+            use_sparse=False,
+            loss=self.loss,
+            standardization_method=self.normalize
         )
 
-        self.assertEqual(opt_pc, 3)
-        self.assertEqual(opt_k, 4)
+        self.assertEqual(opt_pc, self.correct_opt_pc)
+        self.assertEqual(opt_k, self.correct_opt_k)
+
+
+class TestKNNSearchLogLoss(TestKNNSearch):
+
+    normalize = None
+    data = PEAKS.astype(float)
+    dist = PDIST.copy()
+    loss = 'log_loss'
+    correct_loss = np.array([
+        0.999322,
+        0.6487723,
+        0.3080371,
+        0.2210291,
+        0.2230496,
+        0.1966515
+    ])
+    correct_mse_argmin = 5
+    correct_opt_pc = 3
+    correct_opt_k = 7
 
 
 class TestProgramGraphs(unittest.TestCase):

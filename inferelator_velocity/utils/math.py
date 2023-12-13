@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse as sps
 from .misc import make_vector_2D
 
+
 try:
     from sparse_dot_mkl import dot_product_mkl as dot
 
@@ -132,55 +133,114 @@ def _calc_se(x, y, slope):
         return se_y / mse_x
 
 
-def mean_squared_error(x, y=None, by_row=False):
-    """
-    Calculate MSE. If y is None, treat as all zeros
+def _log_loss(x, y):
 
-    :param x: 2D matrix
-    :type x: np.ndarray, sp.spmatrix
-    :param y: 2D matrix, defaults to None
-    :type y: np.ndarray, sp.spmatrix, optional
-    :param by_row: Return MSE as a row vector, defaults to False
-    :type by_row: bool, optional
-    :raises ValueError: Raise a ValueError if x and y are different sizes
-    :return: MSE
-    :rtype: numeric, np.ndarray
-    """
-
-    if y is not None and x.shape != y.shape:
+    if y is None:
         raise ValueError(
-            f"Calculating MSE for X {x.shape}"
-            f" and Y {y.shape} failed"
+            "Cannot calculate log loss for only labels"
         )
 
-    # No Y provided
-    if y is None and sps.issparse(x):
-        ssr = x.power(2).sum(axis=1).A1
+    try:
+        x = x.A
+    except AttributeError:
+        pass
 
-    elif y is None:
-        ssr = (x ** 2).sum(axis=1)
+    try:
+        y = y.A
+    except AttributeError:
+        pass
 
-    # X and Y are sparse
-    elif sps.issparse(x) and sps.issparse(y):
+    y = np.minimum(y, 1 - 1e-7)
+    y = np.maximum(y, 1e-7)
+
+    err = np.multiply(
+        1 - x,
+        np.log(1 - y)
+    )
+    err += np.multiply(
+        x,
+        np.log(y)
+    )
+    err = err.sum(axis=1)
+    err *= -1
+    return err
+
+
+def _mse(x, y):
+
+    if y is not None:
         ssr = x - y
-        ssr.data **= 2
-        ssr = ssr.sum(axis=1).A1
-
-    # At least one of X and Y are dense
     else:
-        ssr = x - y
+        ssr = x.copy()
 
-        if isinstance(ssr, np.matrix):
-            ssr = ssr.A
-
+    if sps.issparse(ssr):
+        ssr.data **= 2
+    elif isinstance(ssr, np.matrix):
+        ssr = ssr.A
         ssr **= 2
-        ssr = ssr.sum(axis=1)
+    else:
+        ssr **= 2
+
+    return ssr.sum(axis=1)
+
+
+def _mae(x, y):
+
+    if y is not None:
+        ssr = x - y
+    else:
+        ssr = x
+
+    return ssr.sum(axis=1)
+
+
+def pairwise_metric(
+    x,
+    y,
+    metric='mse',
+    by_row=False,
+    **kwargs
+):
+    """
+    Pairwise metric between two arrays
+
+    :param x: _description_
+    :type x: _type_
+    :param y: _description_
+    :type y: _type_
+    :param metric: _description_, defaults to 'mse'
+    :type metric: str, optional
+    :param by_row: _description_, defaults to False
+    :type by_row: bool, optional
+    :return: _description_
+    :rtype: _type_
+    """
+
+    if metric == 'mse':
+        metric = _mse
+    elif metric == 'mae':
+        metric = _mae
+    elif metric == 'log_loss':
+        metric = _log_loss
+
+    loss = metric(
+        x,
+        y,
+        **kwargs
+    )
+
+    try:
+        loss = loss.A1
+    except AttributeError:
+        pass
+
+    loss = loss / x.shape[1]
 
     if by_row:
-        return ssr / x.shape[1]
+        return loss
 
     else:
-        return np.sum(ssr) / x.size
+        return loss.sum() / loss.size
 
 
 def variance(

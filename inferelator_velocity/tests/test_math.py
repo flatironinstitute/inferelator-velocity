@@ -1,4 +1,5 @@
 import unittest
+import contextlib
 
 import numpy as np
 import numpy.testing as npt
@@ -6,9 +7,9 @@ import scipy.sparse as sps
 
 from inferelator_velocity.utils.math import (
     scalar_projection,
-    mean_squared_error,
     variance,
-    coefficient_of_variation
+    coefficient_of_variation,
+    pairwise_metric
 )
 
 
@@ -82,6 +83,9 @@ class TestScalarProjections(unittest.TestCase):
 
 class TestMSE(unittest.TestCase):
 
+    metric = 'mse'
+    none_context = contextlib.nullcontext()
+
     @classmethod
     def setUpClass(cls) -> None:
 
@@ -94,53 +98,53 @@ class TestMSE(unittest.TestCase):
         cls.Z_noY = np.mean(cls.X ** 2)
         cls.Z_noY_row = np.mean(cls.X ** 2, axis=1)
 
-        return super().setUpClass()
-
     def test_dense_dense(self):
 
         npt.assert_array_almost_equal(
-            mean_squared_error(self.X, self.Y),
+            pairwise_metric(self.X, self.Y, metric=self.metric),
             self.Z
         )
 
         npt.assert_array_almost_equal(
-            mean_squared_error(self.X, self.Y, by_row=True),
+            pairwise_metric(self.X, self.Y, by_row=True, metric=self.metric),
             self.Z_row
         )
 
-        npt.assert_array_almost_equal(
-            mean_squared_error(self.X, None),
-            self.Z_noY
-        )
+        with self.none_context:
+            npt.assert_array_almost_equal(
+                pairwise_metric(self.X, None, metric=self.metric),
+                self.Z_noY
+            )
 
-        npt.assert_array_almost_equal(
-            mean_squared_error(self.X, None, by_row=True),
-            self.Z_noY_row
-        )
+            npt.assert_array_almost_equal(
+                pairwise_metric(self.X, None, by_row=True, metric=self.metric),
+                self.Z_noY_row
+            )
 
     def test_sparse_dense(self):
 
         X = sps.csr_matrix(self.X)
 
         npt.assert_array_almost_equal(
-            mean_squared_error(X, self.Y),
+            pairwise_metric(X, self.Y, metric=self.metric),
             self.Z
         )
 
         npt.assert_array_almost_equal(
-            mean_squared_error(X, self.Y, by_row=True),
+            pairwise_metric(X, self.Y, by_row=True, metric=self.metric),
             self.Z_row
         )
 
-        npt.assert_array_almost_equal(
-            mean_squared_error(X, None),
-            self.Z_noY
-        )
+        with self.none_context:
+            npt.assert_array_almost_equal(
+                pairwise_metric(X, None, metric=self.metric),
+                self.Z_noY
+            )
 
-        npt.assert_array_almost_equal(
-            mean_squared_error(X, None, by_row=True),
-            self.Z_noY_row
-        )
+            npt.assert_array_almost_equal(
+                pairwise_metric(X, None, by_row=True, metric=self.metric),
+                self.Z_noY_row
+            )
 
     def test_sparse_sparse(self):
 
@@ -148,14 +152,59 @@ class TestMSE(unittest.TestCase):
         Y = sps.csr_matrix(self.Y)
 
         npt.assert_array_almost_equal(
-            mean_squared_error(X, Y),
+            pairwise_metric(X, Y, metric=self.metric),
             self.Z
         )
 
         npt.assert_array_almost_equal(
-            mean_squared_error(X, Y, by_row=True),
+            pairwise_metric(X, Y, by_row=True, metric=self.metric),
             self.Z_row
         )
+
+
+class TestMAE(TestMSE):
+
+    metric = 'mae'
+
+    @classmethod
+    def setUpClass(cls) -> None:
+
+        rng = np.random.default_rng(12345)
+
+        cls.X = rng.random((100, 20))
+        cls.Y = rng.random((100, 20))
+
+        cls.Z = np.mean((cls.X - cls.Y))
+        cls.Z_row = np.mean((cls.X - cls.Y), axis=1)
+        cls.Z_noY = np.mean(cls.X)
+        cls.Z_noY_row = np.mean(cls.X, axis=1)
+
+
+class TestLogLoss(TestMSE):
+
+    metric = 'log_loss'
+
+    @classmethod
+    def setUpClass(cls) -> None:
+
+        rng = np.random.default_rng(12345)
+
+        cls.X = rng.choice([0, 1], (100, 20))
+        cls.Y = rng.random((100, 20))
+
+        cls.Z = cls.X * np.log(cls.Y)
+        cls.Z += (1 - cls.X) * np.log(1 - cls.Y)
+        cls.Z *= -1
+
+        cls.Z_row = np.mean(cls.Z, axis=1)
+        cls.Z = np.mean(cls.Z_row)
+
+        cls.Z_noY = None
+        cls.Z_noY_row = None
+
+    def setUp(self) -> None:
+        self.none_context = self.assertRaises(ValueError)
+        return super().setUp()
 
 
 class TestVariance(unittest.TestCase):
