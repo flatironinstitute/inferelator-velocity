@@ -49,7 +49,8 @@ def program_times(
     n_comps=None,
     verbose=False,
     standardization_method='log',
-    mcv_kwargs={}
+    mcv_kwargs={},
+    nan_on_error=False
 ):
     """
     Calcuate times for each cell based on known cluster time values
@@ -152,7 +153,8 @@ def program_times(
             n_comps=n_comps if n_comps is None else n_comps[prog],
             wrap_time=wrap_time[prog] if wrap_time is not None else None,
             standardization_method=standardization_method,
-            mcv_kwargs=mcv_kwargs
+            mcv_kwargs=mcv_kwargs,
+            nan_on_error=nan_on_error
         )
 
         # Add keys to the .uns object
@@ -182,7 +184,8 @@ def calculate_times(
     graph_method="D",
     return_components=False,
     verbose=False,
-    mcv_kwargs={}
+    mcv_kwargs={},
+    nan_on_error=False
 ):
     """
     Calculate times for each cell based on count data and a known set
@@ -278,25 +281,33 @@ def calculate_times(
         verbose=verbose
     )
 
-    # Order the centroids and build an end-to-end path
-    _total_path, _tp_centroids = get_total_path(
-        get_shortest_paths(
-            adata.obsp['distances'],
-            centroid_indices,
-            graph_method=graph_method
-        ),
-        cluster_order_dict,
-        list(centroids.keys())
-    )
+    # Scalar projections onto centroid-centroid vector
+    times = np.full(n, np.nan, dtype=float)
+
+    try:
+        # Order the centroids and build an end-to-end path
+        _total_path, _tp_centroids = get_total_path(
+            get_shortest_paths(
+                adata.obsp['distances'],
+                centroid_indices,
+                graph_method=graph_method
+            ),
+            cluster_order_dict,
+            list(centroids.keys())
+        )
+    except RuntimeError:
+        if nan_on_error and return_components:
+            return times, None, None
+        elif nan_on_error:
+            return times
+        else:
+            raise
 
     vprint(
         f"Built {len(_total_path)} length path connecting "
         f"{len(_tp_centroids)} groups",
         verbose=verbose
     )
-
-    # Scalar projections onto centroid-centroid vector
-    times = np.full(n, np.nan, dtype=float)
 
     # Save path information between clusters into a dict
     group = {
