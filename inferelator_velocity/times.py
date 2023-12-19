@@ -297,7 +297,7 @@ def calculate_times(
         )
     except RuntimeError:
         if nan_on_error and return_components:
-            return times, None, None
+            return times, adata.obsm['X_pca'], adata.uns['pca']
         elif nan_on_error:
             return times
         else:
