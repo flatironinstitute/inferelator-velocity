@@ -43,6 +43,7 @@ def mcv_pcs(
     """
 
     n_pcs = min(n_pcs, *map(lambda x: x - 1, count_data.shape))
+    size = count_data.shape[0] * count_data.shape[1]
 
     metric_arr = np.zeros((n, n_pcs + 1), dtype=float)
 
@@ -75,7 +76,12 @@ def mcv_pcs(
             )
 
             # Null model (no PCs)
-            metric_arr[i, 0] = np.sum(B.X ** 2)
+
+            if sps.issparse(B.X):
+                metric_arr[i, 0] = np.sum(B.X.data ** 2) / size
+            else:
+                metric_arr[i, 0] = np.sum(B.X ** 2) / size
+
             pbar.update(1)
 
             # Calculate metric for 1-n_pcs number of PCs
