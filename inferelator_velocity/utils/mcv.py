@@ -118,11 +118,11 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
 
     rng = np.random.default_rng(random_seed)
 
-    normalization_depth = np.median(
-        safer_sum(count_data, 1)
-    )
-
     if sps.issparse(count_data):
+
+        normalization_depth = np.median(
+            count_data.sum(axis=1).A1
+        )
 
         if sps.isspmatrix_csr(count_data):
             mat_func = sps.csr_matrix
@@ -144,6 +144,10 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
         )
 
     else:
+
+        normalization_depth = np.median(
+            count_data.sum(axis=1)
+        )
 
         cv_data = np.zeros_like(count_data)
 
@@ -210,26 +214,6 @@ try:
 
         return output
 
-    @numba.njit(parallel=False)
-    def _sum_columns(data, indices, n_col):
-
-        output = np.zeros(n_col, dtype=data.dtype)
-
-        for i in numba.prange(data.shape[0]):
-            output[indices[i]] += data[i]
-
-        return output
-
-    @numba.njit(parallel=False)
-    def _sum_rows(data, indptr):
-
-        output = np.zeros(indptr.shape[0] - 1, dtype=data.dtype)
-
-        for i in numba.prange(output.shape[0]):
-            output[i] = np.sum(data[indptr[i]:indptr[i + 1]])
-
-        return output
-
     def mcv_mse(x, pc, rotation, by_row=False, **metric_kwargs):
 
         if sps.issparse(x):
@@ -258,27 +242,6 @@ try:
                 **metric_kwargs
             )
 
-    def safer_sum(sparse_array, axis=None):
-
-        if not sps.issparse(sparse_array):
-            return np.sum(sparse_array, axis=axis)
-
-        if axis is None:
-            return np.sum(sparse_array.data)
-
-        elif axis == 0:
-            return _sum_columns(
-                sparse_array.data,
-                sparse_array.indices,
-                sparse_array.shape[1]
-            )
-
-        elif axis == 1:
-            return _sum_rows(
-                sparse_array.data,
-                sparse_array.indptr
-            )
-
 except ImportError:
 
     def mcv_mse(x, pc, rotation, **metric_kwargs):
@@ -295,12 +258,3 @@ except ImportError:
             metric='mse',
             **metric_kwargs
         )
-
-    def safer_sum(sparse_array, axis=None):
-
-        x = sparse_array.sum(axis)
-
-        if hasattr(x, 'A1'):
-            return x.A1
-        else:
-            return x
