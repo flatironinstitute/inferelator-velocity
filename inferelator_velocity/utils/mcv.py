@@ -61,22 +61,17 @@ def mcv_pcs(
                 target_sum=n_counts,
                 method=standardization_method
             )
+
             B = standardize_data(
                 B,
                 target_sum=n_counts,
                 method=standardization_method
             )
 
-            # Densify B no matter what
-            # So metric doesn't complain
-            if sps.issparse(B.X):
-                B.X = B.X.A
-
             # Calculate PCA
             sc.pp.pca(
                 A,
-                n_comps=n_pcs,
-                zero_center=True
+                n_comps=n_pcs
             )
 
             # Null model (no PCs)

@@ -166,7 +166,95 @@ def _log_loss(x, y):
     return err
 
 
+try:
+    import numba
+
+    @numba.njit(parallel=False)
+    def _mse_two_sparse(
+        data,
+        indices,
+        indptr,
+        data_b,
+        indices_b,
+        indptr_b,
+        ncol
+    ):
+
+        n_row = indptr.shape[0] - 1
+
+        output = np.zeros(n_row, dtype=float)
+
+        row = np.zeros(ncol, dtype=float)
+        for i in numba.prange(n_row):
+
+            _idx_a = indices[indptr[i]:indptr[i + 1]]
+            _idx_b = indices_b[indptr_b[i]:indptr_b[i + 1]]
+
+            _nnz_a = _idx_a.shape[0]
+            _nnz_b = _idx_b.shape[0]
+
+            if _nnz_a == 0 and _nnz_b == 0:
+                continue
+
+            elif _nnz_a == 0:
+                output[i] += np.sum(data_b[indptr_b[i]:indptr_b[i + 1]] ** 2)
+
+            elif _nnz_b == 0:
+                output[i] += np.sum(data[indptr[i]:indptr[i + 1]] ** 2)
+
+            else:
+
+                row[_idx_a] = data[indptr[i]:indptr[i + 1]]
+                row[_idx_b] -= data_b[indptr_b[i]:indptr_b[i + 1]]
+
+                output[i] += np.sum(row ** 2)
+
+                row[:] = 0
+
+        return output
+
+    def sparse_mse(
+        sparse_array_a,
+        sparse_array_b
+    ):
+
+        if sparse_array_b is None:
+            return (sparse_array_a.data ** 2).sum()
+
+        return _mse_two_sparse(
+            sparse_array_a.data,
+            sparse_array_a.indices,
+            sparse_array_a.indptr,
+            sparse_array_b.data,
+            sparse_array_b.indices,
+            sparse_array_b.indptr,
+            sparse_array_a.shape[1]
+        )
+
+except ImportError:
+
+    def sparse_mse(x, y):
+
+        if y is not None:
+            ssr = x - y
+        else:
+            ssr = x.copy()
+
+        if sps.issparse(ssr):
+            ssr.data **= 2
+        elif isinstance(ssr, np.matrix):
+            ssr = ssr.A
+            ssr **= 2
+        else:
+            ssr **= 2
+
+        return ssr.sum(axis=1)
+
+
 def _mse(x, y):
+
+    if sps.issparse(x) and sps.issparse(y):
+        return sparse_mse(x, y)
 
     if y is not None:
         ssr = x - y

@@ -288,8 +288,7 @@ def standardize_data(
     elif method == 'log_scale':
         data = _normalize_for_pca_log(
             count_data,
-            target_sum,
-
+            target_sum
         )
         data.X = TruncRobustScaler(with_centering=False).fit_transform(
             data.X
