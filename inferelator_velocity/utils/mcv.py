@@ -5,10 +5,10 @@ import scanpy as sc
 import anndata as ad
 import warnings
 
-from .misc import (
+from inferelator_velocity.utils.misc import (
     standardize_data
 )
-from .math import (
+from inferelator_velocity.utils.math import (
     pairwise_metric
 )
 
@@ -201,7 +201,7 @@ try:
             _idx_a = a_indices[a_indptr[i]:a_indptr[i + 1]]
             _nnz_a = _idx_a.shape[0]
 
-            row = np.dot(b_pcs[i, :], b_rotation)
+            row = b_pcs[i, :] @ b_rotation
 
             if _nnz_a == 0:
                 continue
@@ -223,7 +223,7 @@ try:
                 x.indices,
                 x.indptr,
                 np.ascontiguousarray(pc),
-                np.ascontiguousarray(rotation)
+                np.ascontiguousarray(rotation, dtype=pc.dtype)
             )
 
             if by_row:
