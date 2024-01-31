@@ -3,6 +3,7 @@ import numpy as np
 import scipy.sparse as sps
 import scanpy as sc
 import anndata as ad
+import warnings
 
 from .misc import (
     standardize_data
@@ -86,9 +87,10 @@ def mcv_pcs(
 
             # Calculate metric for 1-n_pcs number of PCs
             for j in range(1, n_pcs + 1):
-                metric_arr[i, j] = pairwise_metric(
+                metric_arr[i, j] = mcv_comp(
                     B.X,
-                    A.obsm['X_pca'][:, 0:j] @ A.varm['PCs'][:, 0:j].T,
+                    A.obsm['X_pca'][:, 0:j],
+                    A.varm['PCs'][:, 0:j].T,
                     metric=metric,
                     **metric_kwargs
                 )
@@ -158,3 +160,101 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
     cv_data = ad.AnnData(cv_data)
 
     return count_data, cv_data, normalization_depth
+
+
+def mcv_comp(x, pc, rotation, metric, **metric_kwargs):
+
+    if metric != 'mse':
+        return pairwise_metric(
+            x,
+            pc @ rotation,
+            metric=metric,
+            **metric_kwargs
+        )
+    else:
+        return mcv_mse(
+            x,
+            pc,
+            rotation,
+            **metric_kwargs
+        )
+
+
+try:
+    import numba
+
+    @numba.njit(parallel=False)
+    def _mse_rowwise(
+        a_data,
+        a_indices,
+        a_indptr,
+        b_pcs,
+        b_rotation
+    ):
+
+        n_row = b_pcs.shape[0]
+
+        output = np.zeros(n_row, dtype=float)
+
+        for i in numba.prange(n_row):
+
+            _idx_a = a_indices[a_indptr[i]:a_indptr[i + 1]]
+            _nnz_a = _idx_a.shape[0]
+
+            row = np.dot(b_pcs[i, :], b_rotation)
+
+            if _nnz_a == 0:
+                continue
+
+            else:
+
+                row[_idx_a] -= a_data[a_indptr[i]:a_indptr[i + 1]]
+
+            output[i] = np.mean(row ** 2)
+
+        return output
+
+    def mcv_mse(x, pc, rotation, by_row=False, **metric_kwargs):
+
+        if sps.issparse(x):
+
+            y = _mse_rowwise(
+                x.data,
+                x.indices,
+                x.indptr,
+                pc,
+                rotation
+            )
+
+            if by_row:
+                return y
+
+            else:
+                return np.mean(y)
+
+        else:
+
+            return pairwise_metric(
+                x,
+                pc @ rotation,
+                metric='mse',
+                by_row=by_row,
+                **metric_kwargs
+            )
+
+except ImportError:
+
+    def mcv_mse(x, pc, rotation, **metric_kwargs):
+
+        if x.size > 1e9:
+            warnings.warn(
+                "Numba not installed; defaulting to full dense array; "
+                "this may use a large amount of memory"
+            )
+
+        return pairwise_metric(
+            x,
+            pc @ rotation,
+            metric='mse',
+            **metric_kwargs
+        )

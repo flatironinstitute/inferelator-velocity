@@ -12,6 +12,16 @@ from inferelator_velocity.utils.math import (
     pairwise_metric
 )
 
+from inferelator_velocity.utils.mcv import mcv_mse
+try:
+    from inferelator_velocity.utils.mcv import (
+        _mse_rowwise
+    )
+    NUMBA=True
+
+except ImportError:
+    NUMBA=False
+
 
 N = 1000
 
@@ -79,6 +89,41 @@ class TestScalarProjections(unittest.TestCase):
         )
 
         npt.assert_array_almost_equal(sp, sl)
+
+
+@unittest.skipIf(not NUMBA, "NUMBA not installed")
+class TestMSENumba(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+
+        rng = np.random.default_rng(12345)
+
+        cls.X = rng.random((100, 20))
+        cls.PC = rng.random((100, 10))
+        cls.ROTATION = rng.random((10, 20))
+        cls.Y = cls.PC @ cls.ROTATION
+        cls.Z = np.mean((cls.X - cls.Y) ** 2)
+        cls.Z_row = np.mean((cls.X - cls.Y) ** 2, axis=1)
+        cls.Z_noY = np.mean(cls.X ** 2)
+        cls.Z_noY_row = np.mean(cls.X ** 2, axis=1)
+
+    def test_mse_rowwise(self):
+
+        npt.assert_array_almost_equal(
+            mcv_mse(self.X, self.PC, self.ROTATION),
+            self.Z
+        )
+
+        npt.assert_array_almost_equal(
+            mcv_mse(sps.csr_array(self.X), self.PC, self.ROTATION, by_row=True),
+            self.Z_row
+        )
+
+        npt.assert_array_almost_equal(
+            mcv_mse(sps.csr_array(self.X), self.PC, self.ROTATION),
+            self.Z
+        )
 
 
 class TestMSE(unittest.TestCase):
