@@ -222,8 +222,8 @@ try:
                 x.data,
                 x.indices,
                 x.indptr,
-                pc,
-                rotation
+                np.ascontiguousarray(pc),
+                np.ascontiguousarray(rotation)
             )
 
             if by_row:
