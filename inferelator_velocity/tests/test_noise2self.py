@@ -3,7 +3,6 @@ import scipy.sparse as sps
 import sklearn.metrics
 import numpy.testing as npt
 import anndata as ad
-
 import unittest
 
 from inferelator_velocity.utils.graph import local_optimal_knn
@@ -11,7 +10,8 @@ from inferelator_velocity.utils.noise2self import (
     _dist_to_row_stochastic,
     _connect_to_row_stochastic,
     _search_k,
-    knn_noise2self
+    knn_noise2self,
+    standardize_data
 )
 from inferelator_velocity import (
     program_graphs,
@@ -146,7 +146,7 @@ class TestKNNSearch(unittest.TestCase):
         139.83859323
     ])
     correct_mse_argmin = 4
-    correct_opt_pc = 3
+    correct_opt_pc = 7
     correct_opt_k = 4
 
     def test_ksearch_regression(self):
@@ -157,7 +157,6 @@ class TestKNNSearch(unittest.TestCase):
             np.arange(1, 7),
             loss=self.loss
         )
-        print(mse)
 
         self.assertEqual(np.argmin(mse), self.correct_mse_argmin)
 
@@ -176,7 +175,6 @@ class TestKNNSearch(unittest.TestCase):
             loss=self.loss
         )
 
-        print(mse)
         self.assertEqual(np.argmin(mse), self.correct_mse_argmin)
 
         npt.assert_almost_equal(
@@ -200,7 +198,7 @@ class TestKNNSearch(unittest.TestCase):
 
     def test_knn_select_stack_regression_sparse(self):
 
-        _, opt_pc, opt_k, local_ks = knn_noise2self(
+        obsp, opt_pc, opt_k, local_ks = knn_noise2self(
             sps.csr_matrix(self.data),
             np.arange(1, 11),
             np.array([3, 5, 7]),
@@ -228,6 +226,22 @@ class TestKNNSearch(unittest.TestCase):
         self.assertEqual(opt_k, self.correct_opt_k)
 
 
+class TestKNNSearchNoNorm(TestKNNSearch):
+
+    normalize = None
+    data = standardize_data(
+        ad.AnnData(EXPR.astype(np.float32))
+    ).X
+
+    @unittest.skip
+    def test_ksearch_regression(self):
+        pass
+
+    @unittest.skip
+    def test_ksearch_regression_sparse(self):
+        pass
+
+
 class TestKNNSearchLogLoss(TestKNNSearch):
 
     normalize = None
@@ -243,8 +257,8 @@ class TestKNNSearchLogLoss(TestKNNSearch):
         0.1966515
     ])
     correct_mse_argmin = 5
-    correct_opt_pc = 3
-    correct_opt_k = 7
+    correct_opt_pc = 7
+    correct_opt_k = 8
 
 
 class TestProgramGraphs(unittest.TestCase):
@@ -265,7 +279,7 @@ class TestProgramGraphs(unittest.TestCase):
         self.assertTrue(NOISE2SELF_KEY in adata.uns)
         self.assertTrue(NOISE2SELF_DIST_KEY in adata.obsp)
 
-        self.assertEqual(adata.uns[NOISE2SELF_KEY]['npcs'], 3)
+        self.assertEqual(adata.uns[NOISE2SELF_KEY]['npcs'], 7)
         self.assertEqual(adata.uns[NOISE2SELF_KEY]['neighbors'], 4)
 
     def test_program_graph(self):
@@ -290,5 +304,5 @@ class TestProgramGraphs(unittest.TestCase):
         self.assertTrue(unskey in adata.uns[PROGRAM_KEY])
         self.assertTrue(OBSP_DIST_KEY.format(prog='0') in adata.obsp)
 
-        self.assertEqual(adata.uns[PROGRAM_KEY][unskey]['npcs'], 3)
+        self.assertEqual(adata.uns[PROGRAM_KEY][unskey]['npcs'], 7)
         self.assertEqual(adata.uns[PROGRAM_KEY][unskey]['neighbors'], 4)

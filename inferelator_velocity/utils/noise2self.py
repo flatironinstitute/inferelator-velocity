@@ -86,15 +86,28 @@ def knn_noise2self(
         verbose=verbose
     )
 
-    data_obj = standardize_data(
-        ad.AnnData(count_data.astype(np.float32)),
-        method=standardization_method
-    )
+    if standardization_method is not None:
+        data_obj = standardize_data(
+            ad.AnnData(count_data.astype(np.float32)),
+            method=standardization_method
+        )
 
-    sc.pp.pca(data_obj, n_comps=np.max(npcs), zero_center=False)
+        sc.pp.pca(data_obj, n_comps=np.max(npcs), zero_center=False)
+        expr_data = data_obj.X
+        data_obj.X = sps.csr_matrix(count_data.shape, dtype=np.float32)
+
+    else:
+        data_obj = ad.AnnData(
+            sps.csr_matrix(count_data.shape, dtype=np.float32)
+        )
+        data_obj.obsm['X_pca'] = sc.pp.pca(
+            count_data,
+            n_comps=np.max(npcs),
+            zero_center=False
+        )
+        expr_data = count_data.astype(np.float32)
 
     mses = np.zeros((len(npcs), len(neighbors)))
-    expr_data = data_obj.X
 
     # Create a progress bar
     tqdm_pbar = tqdm.tqdm(
@@ -127,7 +140,6 @@ def knn_noise2self(
             expr_data,
             data_obj.obsp['distances'],
             neighbors,
-            X_compare=expr_data,
             connectivity=connectivity,
             loss=loss,
             loss_kwargs=loss_kwargs
@@ -166,7 +178,6 @@ def knn_noise2self(
             data_obj.obsp['distances'],
             local_neighbors,
             by_row=True,
-            X_compare=expr_data,
             pbar=True,
             connectivity=connectivity,
             loss=loss,
@@ -205,6 +216,7 @@ def _neighbor_graph(adata, pc, k, metric='euclidean'):
     # Build neighbor graph
     sc.pp.neighbors(
         adata,
+        use_rep='X_pca',
         n_neighbors=k,
         n_pcs=pc,
         metric=metric
