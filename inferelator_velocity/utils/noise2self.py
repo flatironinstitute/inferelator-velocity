@@ -7,11 +7,14 @@ import tqdm
 from .graph import set_diag, local_optimal_knn
 from .math import (
     dot,
-    pairwise_metric
+    pairwise_metric,
+    array_sum,
+    _csr_row_divide
 )
 from .misc import (
     vprint,
-    standardize_data
+    standardize_data,
+    is_csr
 )
 
 
@@ -27,10 +30,10 @@ def knn_noise2self(
     metric='euclidean',
     loss='mse',
     return_errors=False,
-    use_sparse=True,
     connectivity=False,
     standardization_method='log',
-    loss_kwargs={}
+    loss_kwargs={},
+    use_sparse=None
 ):
     """
     Select an optimal set of graph parameters based on noise2self
@@ -51,9 +54,7 @@ def knn_noise2self(
     :param return_errors: Return the mean square errors for global
         neighbor/nPC search, defaults to False
     :type return_errors: bool, optional
-    :param use_sparse: Use sparse data structures (slower).
-        Will densify a sparse expression matrix (faster, more memory) if False,
-        defaults to True
+    :param use_sparse: Deprecated; always keep sparse now
     :type use_sparse: bool
     :param connectivity: Calculate row stochastic matrix from connectivity,
         not from distance
@@ -90,14 +91,10 @@ def knn_noise2self(
         method=standardization_method
     )
 
-    sc.pp.pca(data_obj, n_comps=np.max(npcs), zero_center=True)
+    sc.pp.pca(data_obj, n_comps=np.max(npcs), zero_center=False)
 
     mses = np.zeros((len(npcs), len(neighbors)))
-
-    if use_sparse or not sps.issparse(data_obj.X):
-        expr_data = data_obj.X
-    else:
-        expr_data = data_obj.X.A
+    expr_data = data_obj.X
 
     # Create a progress bar
     tqdm_pbar = tqdm.tqdm(
@@ -157,7 +154,7 @@ def knn_noise2self(
 
     # Search space for k-neighbors
     local_neighbors = np.arange(
-        np.min(neighbors) if len(neighbors) > 1 else 0,
+        np.min(neighbors) if len(neighbors) > 1 else 1,
         np.max(neighbors)
     )
 
@@ -278,9 +275,9 @@ def _search_k(
         k_graph = row_normalize(k_graph)
 
         # Calculate mean squared error
-        mses[i] = pairwise_metric(
-            X_compare,
-            dot(k_graph, X, dense=not sps.issparse(X_compare)),
+        mses[i] = _noise_to_self_error(
+            X,
+            k_graph,
             by_row=by_row,
             metric=loss,
             **loss_kwargs
@@ -291,35 +288,144 @@ def _search_k(
 
 def _dist_to_row_stochastic(graph):
 
-    if sps.issparse(graph):
+    if sps.isspmatrix(graph):
 
-        rowsum = graph.sum(axis=1).A1.astype(float)
+        rowsum = array_sum(graph, axis=1).astype(float)
         rowsum[rowsum == 0] = 1.
 
         # Dot product between inverse rowsum diagonalized
         # and graph.
         # Somehow faster then element-wise \_o_/
-        return dot(
-            sps.diags(
-                (1. / rowsum),
-                offsets=0,
-                shape=graph.shape,
-                format='csr',
-                dtype=graph.dtype
-            ),
-            graph
-        )
+
+        if is_csr(graph):
+            _csr_row_divide(
+                graph.data,
+                graph.indptr,
+                rowsum
+            )
+            return graph
+        else:
+            return dot(
+                sps.diags(
+                    (1. / rowsum),
+                    offsets=0,
+                    shape=graph.shape,
+                    format='csr',
+                    dtype=graph.dtype
+                ),
+                graph
+            )
     else:
 
         rowsum = graph.sum(axis=1)
         rowsum[rowsum == 0] = 1.
 
-        return np.multiply(graph, (1 / rowsum)[:, None])
+        return np.multiply(
+            graph,
+            (1 / rowsum)[:, None],
+            out=graph
+        )
 
 
 def _connect_to_row_stochastic(graph):
 
     graph_dtype = graph.dtype
-    graph = graph != 0
 
-    return _dist_to_row_stochastic(graph.astype(graph_dtype))
+    if sps.issparse(graph):
+        graph.data[:] = 1
+    else:
+        graph = graph != 0
+        graph = graph.astype(graph_dtype)
+
+    return _dist_to_row_stochastic(graph)
+
+
+def _noise_to_self_error(
+    X,
+    k_graph,
+    by_row=False,
+    metric='mse',
+    chunk_size=10000,
+    **loss_kwargs
+):
+
+    if (metric == 'mse' and is_csr(X) and chunk_size is not None):
+        _n_row = X.shape[0]
+        _row_mse = np.zeros(X.shape[0], dtype=float)
+
+        for i in range(int(np.ceil(_n_row / chunk_size))):
+            _start = i * chunk_size
+            _end = min(_start + chunk_size, _n_row)
+
+            _row_mse[_start:_end] = _chunk_graph_mse(
+                X,
+                k_graph,
+                _start,
+                _end
+            )
+
+        if by_row:
+            return _row_mse
+        else:
+            return np.mean(_row_mse)
+
+    else:
+        return pairwise_metric(
+            X,
+            dot(k_graph, X, dense=not sps.issparse(X)),
+            by_row=by_row,
+            metric=metric,
+            **loss_kwargs
+        )
+
+
+def _chunk_graph_mse(
+    X,
+    k_graph,
+    row_start=0,
+    row_end=None
+):
+    if row_end is None:
+        row_end = k_graph.shape[0]
+    else:
+        row_end = min(k_graph.shape[0], row_end)
+
+    return _mse_rowwise(
+        X.data,
+        X.indices,
+        X.indptr,
+        dot(
+            k_graph[row_start:row_end, :],
+            X,
+            dense=True
+        )
+    )
+
+
+def _mse_rowwise(
+    a_data,
+    a_indices,
+    a_indptr,
+    b
+):
+
+    n_row = b.shape[0]
+    output = np.zeros(n_row, dtype=float)
+
+    for i in range(n_row):
+
+        _idx_a = a_indices[a_indptr[i]:a_indptr[i + 1]]
+        _nnz_a = _idx_a.shape[0]
+
+        row = b[i, :]
+
+        if _nnz_a == 0:
+            pass
+
+        else:
+            row = row.copy()
+            row[_idx_a] -= a_data[a_indptr[i]:a_indptr[i + 1]]
+
+        output[i] = np.mean(row ** 2)
+
+    return output

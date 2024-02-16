@@ -1,7 +1,9 @@
 import numpy as np
 import scipy.sparse as sps
-from .misc import make_vector_2D
-
+from .misc import (
+    make_vector_2D,
+    is_csr
+)
 
 try:
     from sparse_dot_mkl import dot_product_mkl as dot
@@ -334,3 +336,161 @@ def coefficient_of_variation(
         out=np.zeros_like(_var),
         where=_mean != 0
     )
+
+
+try:
+    import numba
+
+    @numba.njit(parallel=False)
+    def _csr_row_divide(
+        a_data,
+        a_indptr,
+        row_vec
+    ):
+
+        n_row = row_vec.shape[0]
+
+        for i in numba.prange(n_row):
+            a_data[a_indptr[i]:a_indptr[i + 1]] /= row_vec[i]
+
+    @numba.njit(parallel=False)
+    def _mse_rowwise(
+        a_data,
+        a_indices,
+        a_indptr,
+        b_pcs,
+        b_rotation
+    ):
+
+        n_row = b_pcs.shape[0]
+
+        output = np.zeros(n_row, dtype=float)
+
+        for i in numba.prange(n_row):
+
+            _idx_a = a_indices[a_indptr[i]:a_indptr[i + 1]]
+            _nnz_a = _idx_a.shape[0]
+
+            row = b_pcs[i, :] @ b_rotation
+
+            if _nnz_a == 0:
+                continue
+
+            else:
+
+                row[_idx_a] -= a_data[a_indptr[i]:a_indptr[i + 1]]
+
+            output[i] = np.mean(row ** 2)
+
+        return output
+
+    @numba.njit(parallel=False)
+    def _sum_columns(data, indices, n_col):
+
+        output = np.zeros(n_col, dtype=data.dtype)
+
+        for i in numba.prange(data.shape[0]):
+            output[indices[i]] += data[i]
+
+        return output
+
+    @numba.njit(parallel=False)
+    def _sum_rows(data, indptr):
+
+        output = np.zeros(indptr.shape[0] - 1, dtype=data.dtype)
+
+        for i in numba.prange(output.shape[0]):
+            output[i] = np.sum(data[indptr[i]:indptr[i + 1]])
+
+        return output
+
+    def array_sum(array, axis=None):
+
+        if not is_csr(array):
+            _sums = array.sum(axis=axis)
+            try:
+                _sums = _sums.A1
+            except AttributeError:
+                pass
+            return _sums
+
+        if axis is None:
+            return np.sum(array.data)
+
+        elif axis == 0:
+            return _sum_columns(
+                array.data,
+                array.indices,
+                array.shape[1]
+            )
+
+        elif axis == 1:
+            return _sum_rows(
+                array.data,
+                array.indptr
+            )
+
+    def mcv_mse(x, pc, rotation, by_row=False, **metric_kwargs):
+
+        if sps.issparse(x):
+
+            y = _mse_rowwise(
+                x.data,
+                x.indices,
+                x.indptr,
+                np.ascontiguousarray(pc),
+                np.ascontiguousarray(rotation, dtype=pc.dtype)
+            )
+
+            if by_row:
+                return y
+
+            else:
+                return np.mean(y)
+
+        else:
+
+            return pairwise_metric(
+                x,
+                pc @ rotation,
+                metric='mse',
+                by_row=by_row,
+                **metric_kwargs
+            )
+
+except ImportError:
+
+    def mcv_mse(x, pc, rotation, **metric_kwargs):
+
+        if x.size > 1e9:
+            warnings.warn(
+                "Numba not installed; defaulting to full dense array; "
+                "this may use a large amount of memory"
+            )
+
+        return pairwise_metric(
+            x,
+            pc @ rotation,
+            metric='mse',
+            **metric_kwargs
+        )
+
+    def _csr_row_divide(
+        a_data,
+        a_indptr,
+        row_vec
+    ):
+
+        n_row = row_vec.shape[0]
+
+        for i in numba.prange(n_row):
+            a_data[a_indptr[i]:a_indptr[i + 1]] /= row_vec[i]
+
+    def array_sum(array, axis=None):
+
+        _sums = array.sum(axis=axis)
+        try:
+            _sums = _sums.A1
+        except AttributeError:
+            pass
+        return _sums

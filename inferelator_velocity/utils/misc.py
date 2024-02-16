@@ -1,6 +1,7 @@
 import numpy as np
 import anndata as ad
 import scanpy as sc
+import scipy.sparse as sps
 
 import pandas.api.types as pat
 import warnings
@@ -324,3 +325,11 @@ def ragged_lists_to_array(
          for c in range(_max_len)]
          for x in lists]
     )
+
+
+def is_csr(x):
+    return sps.isspmatrix_csr(x) or isinstance(x, sps.csr_array)
+
+
+def is_csc(x):
+    return sps.isspmatrix_csc(x) or isinstance(x, sps.csc_array)

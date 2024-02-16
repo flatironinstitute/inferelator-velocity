@@ -3,13 +3,13 @@ import numpy as np
 import scipy.sparse as sps
 import scanpy as sc
 import anndata as ad
-import warnings
 
 from inferelator_velocity.utils.misc import (
     standardize_data
 )
 from inferelator_velocity.utils.math import (
-    pairwise_metric
+    pairwise_metric,
+    mcv_mse
 )
 
 
@@ -176,85 +176,5 @@ def mcv_comp(x, pc, rotation, metric, **metric_kwargs):
             x,
             pc,
             rotation,
-            **metric_kwargs
-        )
-
-
-try:
-    import numba
-
-    @numba.njit(parallel=False)
-    def _mse_rowwise(
-        a_data,
-        a_indices,
-        a_indptr,
-        b_pcs,
-        b_rotation
-    ):
-
-        n_row = b_pcs.shape[0]
-
-        output = np.zeros(n_row, dtype=float)
-
-        for i in numba.prange(n_row):
-
-            _idx_a = a_indices[a_indptr[i]:a_indptr[i + 1]]
-            _nnz_a = _idx_a.shape[0]
-
-            row = b_pcs[i, :] @ b_rotation
-
-            if _nnz_a == 0:
-                continue
-
-            else:
-
-                row[_idx_a] -= a_data[a_indptr[i]:a_indptr[i + 1]]
-
-            output[i] = np.mean(row ** 2)
-
-        return output
-
-    def mcv_mse(x, pc, rotation, by_row=False, **metric_kwargs):
-
-        if sps.issparse(x):
-
-            y = _mse_rowwise(
-                x.data,
-                x.indices,
-                x.indptr,
-                np.ascontiguousarray(pc),
-                np.ascontiguousarray(rotation, dtype=pc.dtype)
-            )
-
-            if by_row:
-                return y
-
-            else:
-                return np.mean(y)
-
-        else:
-
-            return pairwise_metric(
-                x,
-                pc @ rotation,
-                metric='mse',
-                by_row=by_row,
-                **metric_kwargs
-            )
-
-except ImportError:
-
-    def mcv_mse(x, pc, rotation, **metric_kwargs):
-
-        if x.size > 1e9:
-            warnings.warn(
-                "Numba not installed; defaulting to full dense array; "
-                "this may use a large amount of memory"
-            )
-
-        return pairwise_metric(
-            x,
-            pc @ rotation,
-            metric='mse',
             **metric_kwargs
         )
