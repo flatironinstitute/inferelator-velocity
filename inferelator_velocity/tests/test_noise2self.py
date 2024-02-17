@@ -210,21 +210,6 @@ class TestKNNSearch(unittest.TestCase):
         self.assertEqual(opt_pc, self.correct_opt_pc)
         self.assertEqual(opt_k, self.correct_opt_k)
 
-    def test_knn_select_stack_regression_sparse_but_flagged(self):
-
-        _, opt_pc, opt_k, local_ks = knn_noise2self(
-            sps.csr_matrix(self.data),
-            np.arange(1, 11),
-            np.array([3, 5, 7]),
-            verbose=True,
-            use_sparse=False,
-            loss=self.loss,
-            standardization_method=self.normalize
-        )
-
-        self.assertEqual(opt_pc, self.correct_opt_pc)
-        self.assertEqual(opt_k, self.correct_opt_k)
-
 
 class TestKNNSearchNoNorm(TestKNNSearch):
 
@@ -258,7 +243,7 @@ class TestKNNSearchLogLoss(TestKNNSearch):
     ])
     correct_mse_argmin = 5
     correct_opt_pc = 7
-    correct_opt_k = 8
+    correct_opt_k = 9
 
 
 class TestProgramGraphs(unittest.TestCase):

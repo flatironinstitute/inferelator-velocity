@@ -32,6 +32,7 @@ def knn_noise2self(
     return_errors=False,
     connectivity=False,
     standardization_method='log',
+    pc_data=None,
     loss_kwargs={},
     use_sparse=None
 ):
@@ -59,6 +60,12 @@ def knn_noise2self(
     :param connectivity: Calculate row stochastic matrix from connectivity,
         not from distance
     :type connectivity: bool
+    :param standardization_method: How to standardize provided count data,
+        None disables. Options are `log`, `scale`, and `log_scale`. Defaults
+        to 'log'.
+    :type standardization_method: str, optional,
+    :param pc_data: Precalculated principal components, defaults to None
+    :type pc_data: np.ndarray, optional
     :return: Optimal k-NN graph
         global optimal # of PCs,
         global optimal k,
@@ -66,8 +73,18 @@ def knn_noise2self(
     :rtype: sp.sparse.csr_matrix, int, int, np.ndarray [int]
     """
 
-    neighbors = N_NEIGHBORS if neighbors is None else neighbors
-    npcs = N_PCS if npcs is None else npcs
+    # Get default search parameters and check dtypes
+    if neighbors is None:
+        neighbors = N_NEIGHBORS
+    else:
+        neighbors = np.asanyarray(neighbors)
+
+    if npcs is None:
+        npcs = N_PCS
+    else:
+        npcs = np.asanyarray(npcs)
+
+    _max_pcs = np.max(npcs)
 
     if not np.issubdtype(neighbors.dtype, np.integer):
         raise ValueError(
@@ -81,31 +98,47 @@ def knn_noise2self(
             f"{npcs.dtype} provided"
         )
 
+    # Check input data sizes
+    if pc_data is not None and pc_data.shape[1] < _max_pcs:
+        raise ValueError(
+            f"Cannot search through {_max_pcs} PCs; only "
+            f"{pc_data.shape[1]} components provided"
+        )
+    elif min(count_data.shape) < _max_pcs:
+        raise ValueError(
+            f"Cannot search through {_max_pcs} PCs for "
+            f"data {count_data.shape} provided"
+        )
+
     vprint(
         f"Searching {len(npcs)} PC x {len(neighbors)} Neighbors space",
         verbose=verbose
     )
 
+    # Standardize data if necessary and create an anndata object
+    # Keep separate reference to expression data and force float32
     if standardization_method is not None:
         data_obj = standardize_data(
             ad.AnnData(count_data.astype(np.float32)),
             method=standardization_method
         )
-
-        sc.pp.pca(data_obj, n_comps=np.max(npcs), zero_center=False)
         expr_data = data_obj.X
-        data_obj.X = sps.csr_matrix(count_data.shape, dtype=np.float32)
 
     else:
         data_obj = ad.AnnData(
             sps.csr_matrix(count_data.shape, dtype=np.float32)
         )
+        expr_data = count_data.astype(np.float32)
+
+    if pc_data is not None:
+        data_obj.obsm['X_pca'] = pc_data
+
+    else:
         data_obj.obsm['X_pca'] = sc.pp.pca(
-            count_data,
+            expr_data,
             n_comps=np.max(npcs),
             zero_center=False
         )
-        expr_data = count_data.astype(np.float32)
 
     mses = np.zeros((len(npcs), len(neighbors)))
 
