@@ -1,8 +1,11 @@
 import numpy as np
+import numba
 from scipy.sparse.csgraph import shortest_path
-from scipy.sparse import (issparse as _is_sparse,
-                          isspmatrix_csr as _is_csr,
-                          csr_matrix as _csr)
+from scipy.sparse import (
+    issparse as _is_sparse,
+    isspmatrix_csr as _is_csr,
+    csr_matrix as _csr
+)
 import itertools
 
 
@@ -138,8 +141,6 @@ def local_optimal_knn(
 
     if neighbor_sparse and not _is_csr(neighbor_graph):
         raise ValueError("Sparse matrices must be CSR")
-    elif neighbor_sparse:
-        neighbor_graph.eliminate_zeros()
 
     if n != len(nn_vector):
         raise ValueError(
@@ -162,6 +163,18 @@ def local_optimal_knn(
 
     _smallest = keep == 'smallest'
 
+    if neighbor_sparse:
+        _shrink_sparse_graph_k(
+            neighbor_graph.data,
+            neighbor_graph.indptr,
+            np.asanyarray(nn_vector),
+            smallest=_smallest
+        )
+
+        neighbor_graph.eliminate_zeros()
+
+        return neighbor_graph
+
     for i in range(n):
 
         k = nn_vector[i]
@@ -169,47 +182,16 @@ def local_optimal_knn(
         if k >= n:
             continue
 
-        # Modify CSR matrix if passed
-        if _is_sparse(neighbor_graph):
+        n_slice = neighbor_graph[i, :]
 
-            _ngd_nnz = neighbor_graph.indptr[i+1] - neighbor_graph.indptr[i]
+        # Use a masked array to block out zeros
+        droppers = np.ma.masked_array(
+            n_slice,
+            mask=n_slice == 0
+        ).argsort(endwith=_smallest)[_nn_slice(k, m)]
 
-            if _ngd_nnz > k:
-
-                # Get row-specific nonzero data from sparse object
-                _ngd_data = neighbor_graph.data[
-                    neighbor_graph.indptr[i]:
-                    neighbor_graph.indptr[i+1]
-                ]
-
-                # Set all the values that should not be kept to zero
-                # By argsorting them and slicing only the indexes to zero
-                _ngd_data[
-                    np.argsort(
-                        _ngd_data
-                    )[_nn_slice(k, _ngd_nnz)]
-                ] = 0.
-
-            else:
-                continue
-
-        # Modify numpy array if passed
-        else:
-
-            n_slice = neighbor_graph[i, :]
-
-            # Use a masked array to block out zeros
-            droppers = np.ma.masked_array(
-                n_slice,
-                mask=n_slice == 0
-            ).argsort(endwith=_smallest)[_nn_slice(k, m)]
-
-            # Write the new data into the original array
-            neighbor_graph[i, droppers] = 0.
-
-    # Make sure to remove zeros from the sparse array
-    if neighbor_sparse:
-        neighbor_graph.eliminate_zeros()
+        # Write the new data into the original array
+        neighbor_graph[i, droppers] = 0.
 
     return neighbor_graph
 
@@ -248,3 +230,33 @@ def set_diag(X, diag):
         np.fill_diagonal(X, diag)
 
     return X
+
+
+@numba.njit(parallel=True)
+def _shrink_sparse_graph_k(
+    graph_data,
+    graph_indptr,
+    k_vec,
+    smallest=True
+):
+
+    n = graph_indptr.shape[0] - 1
+
+    for i in numba.prange(n):
+
+        _left = graph_indptr[i]
+        _right = graph_indptr[i+1]
+        _n = _right - _left
+
+        k = k_vec[i]
+
+        if _n <= k:
+            pass
+
+        else:
+            _data = graph_data[_left:_right]
+
+            if smallest:
+                _data[np.argsort(_data)[k - _n:]] = 0
+            else:
+                _data[np.argsort(_data)[:_n - k]] = 0

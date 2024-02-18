@@ -243,7 +243,7 @@ class TestKNNSearchLogLoss(TestKNNSearch):
     ])
     correct_mse_argmin = 5
     correct_opt_pc = 7
-    correct_opt_k = 9
+    correct_opt_k = 8
 
 
 class TestProgramGraphs(unittest.TestCase):

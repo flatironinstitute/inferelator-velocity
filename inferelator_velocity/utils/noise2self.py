@@ -2,9 +2,16 @@ import numpy as np
 import anndata as ad
 import scanpy as sc
 import scipy.sparse as sps
+import numba
 import tqdm
+from pynndescent import PyNNDescentTransformer
+from sklearn.neighbors import NearestNeighbors
 
-from .graph import set_diag, local_optimal_knn
+
+from .graph import (
+    set_diag,
+    local_optimal_knn
+)
 from .math import (
     dot,
     pairwise_metric,
@@ -131,9 +138,17 @@ def knn_noise2self(
         expr_data = count_data.astype(np.float32)
 
     if pc_data is not None:
+        vprint(
+            f"Using existing PCs {pc_data.shape}",
+            verbose=verbose
+        )
         data_obj.obsm['X_pca'] = pc_data
 
     else:
+        vprint(
+            f"Calculating {np.max(npcs)} PCs",
+            verbose=verbose
+        )
         data_obj.obsm['X_pca'] = sc.pp.pca(
             expr_data,
             n_comps=np.max(npcs),
@@ -156,7 +171,7 @@ def knn_noise2self(
     for i, pc in tqdm_pbar:
 
         # Update the progress bar
-        tqdm_pbar.postfix = f"{npcs[min(i + 1, len(npcs) - 1)]} PCs"
+        tqdm_pbar.postfix = f"{pc} PCs [{np.max(neighbors)} Graph]"
 
         # Calculate neighbor graph with the max number of neighbors
         # Faster to select only a subset of edges than to recalculate
@@ -168,6 +183,9 @@ def knn_noise2self(
             metric=metric
         )
 
+        # Update the progress bar
+        tqdm_pbar.postfix = f"{pc} PCs Neighbor Search"
+
         # Search through the neighbors space
         mses[i, :] = _search_k(
             expr_data,
@@ -175,7 +193,8 @@ def knn_noise2self(
             neighbors,
             connectivity=connectivity,
             loss=loss,
-            loss_kwargs=loss_kwargs
+            loss_kwargs=loss_kwargs,
+            pbar=tqdm_pbar
         )
 
     # Get the index of the optimal PCs and k based on
@@ -246,19 +265,29 @@ def _neighbor_graph(adata, pc, k, metric='euclidean'):
     Build neighbor graph in an AnnDaya object
     """
 
-    # Build neighbor graph
-    sc.pp.neighbors(
-        adata,
-        use_rep='X_pca',
-        n_neighbors=k,
-        n_pcs=pc,
-        metric=metric
-    )
+    if adata.n_obs < 25000:
+
+        adata.obsp['distances'] = NearestNeighbors(
+            n_neighbors=k,
+            metric=metric,
+            n_jobs=-1
+        ).fit(adata.obsm['X_pca'][:, 0:pc]).kneighbors_graph()
+
+    else:
+        adata.obsp['distances'] = PyNNDescentTransformer(
+            n_neighbors=k,
+            n_jobs=None,
+            metric=metric,
+            n_trees=min(64, 5 + int(round((adata.n_obs) ** 0.5 / 20.0))),
+            n_iters=max(5, int(round(np.log2(adata.n_obs)))),
+        ).fit_transform(adata.obsm['X_pca'][:, 0:pc])
 
     # Enforce diagonal zeros on graph
     # Single precision floats
     set_diag(adata.obsp['distances'], 0)
-    adata.obsp['distances'] = adata.obsp['distances'].astype(np.float32)
+    adata.obsp['distances'].data = adata.obsp['distances'].data.astype(
+        np.float32
+    )
 
     return adata
 
@@ -300,7 +329,10 @@ def _search_k(
 
     mses = np.zeros(n_k) if not by_row else np.zeros((n_k, n))
 
-    rfunc = tqdm.trange if pbar else range
+    rfunc = tqdm.trange if pbar is True else range
+
+    if hasattr(pbar, 'postfix'):
+        _postfix = pbar.postfix
 
     if connectivity:
         row_normalize = _connect_to_row_stochastic
@@ -308,6 +340,9 @@ def _search_k(
         row_normalize = _dist_to_row_stochastic
 
     for i in rfunc(n_k):
+
+        if hasattr(pbar, 'postfix'):
+            pbar.postfix = _postfix + f" ({k[i]} N)"
 
         # Extract k non-zero neighbors from the graph
         k_graph = local_optimal_knn(
@@ -447,6 +482,7 @@ def _chunk_graph_mse(
     )
 
 
+@numba.njit(parallel=True)
 def _mse_rowwise(
     a_data,
     a_indices,
@@ -457,7 +493,7 @@ def _mse_rowwise(
     n_row = b.shape[0]
     output = np.zeros(n_row, dtype=float)
 
-    for i in range(n_row):
+    for i in numba.prange(n_row):
 
         _idx_a = a_indices[a_indptr[i]:a_indptr[i + 1]]
         _nnz_a = _idx_a.shape[0]

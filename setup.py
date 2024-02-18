@@ -11,7 +11,8 @@ install_requires = [
     "scikit-learn",
     "tqdm",
     "sparse_dot_mkl",
-    "leidenalg"
+    "leidenalg",
+    "numba"
 ]
 
 tests_require = [

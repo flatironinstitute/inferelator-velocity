@@ -10,3 +10,4 @@ tqdm
 matplotlib
 sparse_dot_mkl
 leidenalg
+numba
