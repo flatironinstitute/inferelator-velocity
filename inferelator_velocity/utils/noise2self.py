@@ -172,6 +172,7 @@ def knn_noise2self(
 
         # Update the progress bar
         tqdm_pbar.postfix = f"{pc} PCs [{np.max(neighbors)} Graph]"
+        tqdm_pbar.update(0)
 
         # Calculate neighbor graph with the max number of neighbors
         # Faster to select only a subset of edges than to recalculate
