@@ -185,6 +185,7 @@ def knn_noise2self(
 
         # Update the progress bar
         tqdm_pbar.postfix = f"{pc} PCs Neighbor Search"
+        tqdm_pbar.update(0)
 
         # Search through the neighbors space
         mses[i, :] = _search_k(
@@ -343,6 +344,7 @@ def _search_k(
 
         if hasattr(pbar, 'postfix'):
             pbar.postfix = _postfix + f" ({k[i]} N)"
+            pbar.update(0)
 
         # Extract k non-zero neighbors from the graph
         k_graph = local_optimal_knn(
