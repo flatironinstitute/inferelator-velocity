@@ -36,11 +36,11 @@ def knn_noise2self(
     verbose=False,
     metric='euclidean',
     loss='mse',
+    loss_kwargs={},
     return_errors=False,
     connectivity=False,
     standardization_method='log',
     pc_data=None,
-    loss_kwargs={},
     use_sparse=None
 ):
     """
@@ -57,8 +57,15 @@ def knn_noise2self(
     :param verbose: Verbose output to stdout,
         defaults to False
     :type verbose: bool, optional
-    :param metric: Distance metric to use, defaults to 'euclidean'
+    :param metric: Distance metric to use for k-NN graph construction,
+        supports any metric sklearn Neighbors does, defaults to 'euclidean'
     :type metric: str, optional
+    :param loss: Loss function for comparing reconstructed expression data to
+        actual expression data, supports `mse`, `mae`, and `log_loss`, or any
+        callable of the form func(x, y, **kwargs). Defaults to `mse`.
+    :type loss: str, func, optional
+    :param loss_kwargs: Dict of kwargs for the loss function, defalts to {}
+    :type loss_kwargs: dict, optional
     :param return_errors: Return the mean square errors for global
         neighbor/nPC search, defaults to False
     :type return_errors: bool, optional
@@ -273,7 +280,7 @@ def _neighbor_graph(adata, pc, k, metric='euclidean'):
             n_neighbors=k,
             metric=metric,
             n_jobs=-1
-        ).fit(adata.obsm['X_pca'][:, 0:pc]).kneighbors_graph()
+        ).fit(adata.obsm['X_pca'][:, :pc]).kneighbors_graph()
 
     else:
         adata.obsp['distances'] = PyNNDescentTransformer(
@@ -282,7 +289,7 @@ def _neighbor_graph(adata, pc, k, metric='euclidean'):
             metric=metric,
             n_trees=min(64, 5 + int(round((adata.n_obs) ** 0.5 / 20.0))),
             n_iters=max(5, int(round(np.log2(adata.n_obs)))),
-        ).fit_transform(adata.obsm['X_pca'][:, 0:pc])
+        ).fit_transform(adata.obsm['X_pca'][:, :pc])
 
     # Enforce diagonal zeros on graph
     # Single precision floats
