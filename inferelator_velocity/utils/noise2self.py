@@ -169,17 +169,13 @@ def knn_noise2self(
         enumerate(npcs),
         postfix=f"{npcs[0]} PCs",
         bar_format='{l_bar}{bar}{r_bar}',
-        total=len(npcs)
+        total=len(npcs) * len(neighbors)
     )
 
     # Search for the smallest MSE for each n_pcs / k combination
     # Outer loop does PCs, because the distance graph has to be
     # recalculated when PCs changes
     for i, pc in tqdm_pbar:
-
-        # Update the progress bar
-        tqdm_pbar.postfix = f"{pc} PCs [{np.max(neighbors)} Graph]"
-        tqdm_pbar.update(0)
 
         # Calculate neighbor graph with the max number of neighbors
         # Faster to select only a subset of edges than to recalculate
@@ -352,7 +348,7 @@ def _search_k(
 
         if hasattr(pbar, 'postfix'):
             pbar.postfix = _postfix + f" ({k[i]} N)"
-            pbar.update(0)
+            pbar.update(1)
 
         # Extract k non-zero neighbors from the graph
         k_graph = local_optimal_knn(
