@@ -210,6 +210,20 @@ class TestKNNSearch(unittest.TestCase):
         self.assertEqual(opt_pc, self.correct_opt_pc)
         self.assertEqual(opt_k, self.correct_opt_k)
 
+    def test_knn_select_stack_regression_nopcsearch(self):
+
+        _, opt_pc, opt_k, local_ks = knn_noise2self(
+            self.data,
+            np.arange(1, 11),
+            5,
+            verbose=True,
+            loss=self.loss,
+            standardization_method=self.normalize
+        )
+
+        self.assertEqual(opt_pc, 5)
+        self.assertIsNone(opt_k)
+
 
 class TestKNNSearchNoNorm(TestKNNSearch):
 

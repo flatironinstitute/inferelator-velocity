@@ -92,12 +92,12 @@ def knn_noise2self(
     if neighbors is None:
         neighbors = N_NEIGHBORS
     else:
-        neighbors = np.asanyarray(neighbors)
+        neighbors = np.asanyarray(neighbors).reshape(-1)
 
     if npcs is None:
         npcs = N_PCS
     else:
-        npcs = np.asanyarray(npcs)
+        npcs = np.asanyarray(npcs).reshape(-1)
 
     _max_pcs = np.max(npcs)
 
@@ -165,55 +165,64 @@ def knn_noise2self(
 
     mses = np.zeros((len(npcs), len(neighbors)))
 
-    # Create a progress bar
-    tqdm_pbar = tqdm.tqdm(
-        enumerate(npcs),
-        postfix=f"{npcs[0]} PCs",
-        bar_format='{l_bar}{bar}{r_bar}',
-        total=len(npcs) * len(neighbors)
-    )
-
-    # Search for the smallest MSE for each n_pcs / k combination
-    # Outer loop does PCs, because the distance graph has to be
-    # recalculated when PCs changes
-    for i, pc in tqdm_pbar:
-
-        # Calculate neighbor graph with the max number of neighbors
-        # Faster to select only a subset of edges than to recalculate
-        # (obviously)
-        _neighbor_graph(
-            data_obj,
-            pc,
-            np.max(neighbors),
-            metric=metric
+    if len(npcs) > 1:
+        # Create a progress bar
+        tqdm_pbar = tqdm.tqdm(
+            enumerate(npcs),
+            postfix=f"{npcs[0]} PCs",
+            bar_format='{l_bar}{bar}{r_bar}',
+            total=len(npcs) * len(neighbors)
         )
 
-        # Update the progress bar
-        tqdm_pbar.postfix = f"{pc} PCs Neighbor Search"
-        tqdm_pbar.update(0)
+        # Search for the smallest MSE for each n_pcs / k combination
+        # Outer loop does PCs, because the distance graph has to be
+        # recalculated when PCs changes
+        for i, pc in tqdm_pbar:
 
-        # Search through the neighbors space
-        mses[i, :] = _search_k(
-            expr_data,
-            data_obj.obsp['distances'],
-            neighbors,
-            connectivity=connectivity,
-            loss=loss,
-            loss_kwargs=loss_kwargs,
-            chunk_size=chunk_size,
-            pbar=tqdm_pbar
+            # Calculate neighbor graph with the max number of neighbors
+            # Faster to select only a subset of edges than to recalculate
+            # (obviously)
+            _neighbor_graph(
+                data_obj,
+                pc,
+                np.max(neighbors),
+                metric=metric
+            )
+
+            # Update the progress bar
+            tqdm_pbar.postfix = f"{pc} PCs Neighbor Search"
+            tqdm_pbar.update(0)
+
+            # Search through the neighbors space
+            mses[i, :] = _search_k(
+                expr_data,
+                data_obj.obsp['distances'],
+                neighbors,
+                connectivity=connectivity,
+                loss=loss,
+                loss_kwargs=loss_kwargs,
+                chunk_size=chunk_size,
+                pbar=tqdm_pbar
+            )
+
+        # Get the index of the optimal PCs and k based on
+        # minimizing MSE
+        op_pc = np.argmin(np.min(mses, axis=1))
+        op_k = np.argmin(mses[op_pc, :])
+
+        vprint(
+            f"Global optimal graph at {npcs[op_pc]} PCs "
+            f"and {neighbors[op_k]} neighbors",
+            verbose=verbose
         )
-
-    # Get the index of the optimal PCs and k based on
-    # minimizing MSE
-    op_pc = np.argmin(np.min(mses, axis=1))
-    op_k = np.argmin(mses[op_pc, :])
-
-    vprint(
-        f"Global optimal graph at {npcs[op_pc]} PCs "
-        f"and {neighbors[op_k]} neighbors",
-        verbose=verbose
-    )
+    else:
+        vprint(
+            "Skipping global optimal graph search and "
+            f"using {npcs[0]} PCs",
+            verbose=verbose
+        )
+        op_pc = 0
+        op_k = None
 
     # Recalculate a k-NN graph from the optimal # of PCs
     _neighbor_graph(
@@ -257,7 +266,7 @@ def knn_noise2self(
             local_k
         ),
         npcs[op_pc],
-        neighbors[op_k],
+        neighbors[op_k] if op_k is not None else None,
         local_k
     )
 
