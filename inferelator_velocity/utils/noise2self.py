@@ -41,6 +41,7 @@ def knn_noise2self(
     connectivity=False,
     standardization_method='log',
     pc_data=None,
+    chunk_size=10000,
     use_sparse=None
 ):
     """
@@ -199,6 +200,7 @@ def knn_noise2self(
             connectivity=connectivity,
             loss=loss,
             loss_kwargs=loss_kwargs,
+            chunk_size=chunk_size,
             pbar=tqdm_pbar
         )
 
@@ -238,7 +240,8 @@ def knn_noise2self(
             pbar=True,
             connectivity=connectivity,
             loss=loss,
-            loss_kwargs=loss_kwargs
+            loss_kwargs=loss_kwargs,
+            chunk_size=chunk_size
         ),
         axis=0
     )]
@@ -306,7 +309,8 @@ def _search_k(
     loss_kwargs={},
     X_compare=None,
     pbar=False,
-    connectivity=False
+    connectivity=False,
+    chunk_size=10000
 ):
     """
     Find optimal number of neighbors for a given graph
@@ -366,6 +370,7 @@ def _search_k(
             k_graph,
             by_row=by_row,
             metric=loss,
+            chunk_size=chunk_size,
             **loss_kwargs
         )
 
