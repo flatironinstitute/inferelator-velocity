@@ -12,7 +12,8 @@ def denoise(
     data,
     layer='X',
     graph_key=NOISE2SELF_DIST_KEY,
-    output_layer=NOISE2SELF_DENOISED_KEY
+    output_layer=NOISE2SELF_DENOISED_KEY,
+    dense=True
 ):
 
     lref = data.X if layer == 'X' else data.layers[layer]
@@ -25,5 +26,8 @@ def denoise(
 
     data.layers[output_layer] = dot(
         _dist_to_row_stochastic(data.obsp[graph_key]),
-        lref
+        lref,
+        dense=dense
     )
+
+    return data
