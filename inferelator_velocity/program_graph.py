@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 
 from .utils.noise2self import knn_noise2self
@@ -21,9 +22,10 @@ def global_graph(
     standardization_method='log',
     neighbors=None,
     npcs=None,
-    use_sparse=True,
     connectivity=False,
     verbose=False,
+    use_existing_pca=False,
+    existing_pca_key='X_pca',
     **kwargs
 ):
     """
@@ -33,8 +35,10 @@ def global_graph(
     :type data: ad.AnnData
     :param layer: Layer to use for kNN, defaults to "X"
     :type layer: str, optional
-    :param standardization_method: Depth-normalize and log1p data ('log')
-        or depth-normalize and run robust scaler ('scale'). Defaults to 'log'.
+    :param standardization_method: Depth-normalize and log1p data ('log'), or
+        depth-normalize and run robust scaler ('scale'), or depth-normalize
+        and log and scale ('log_scale'), or do not standardize (None).
+        Defaults to 'log'.
     :type standardization_method: str, optional
     :param neighbors: Search space for k neighbors,
         defaults to 15 - 105 by 10
@@ -42,10 +46,6 @@ def global_graph(
     :param npcs: Search space for number of PCs,
         defaults to 5-105 by 10
     :type npcs: np.ndarray, optional
-    :param use_sparse: Use sparse data structures (slower).
-        Will densify a sparse expression matrix (faster, more memory) if False,
-        defaults to True
-    :type use_sparse: bool
     :param connectivity: Use a connectivity graph instead of a distance graph,
         defaults to False
     :type connectivity: bool, optional
@@ -62,14 +62,31 @@ def global_graph(
 
     lref = data.X if layer == "X" else data.layers[layer]
 
+    if use_existing_pca and standardization_method is not None:
+        warnings.warn(
+            f"Using PC embedding in data.obs[{existing_pca_key}] "
+            f"and preprocessing data in {layer} with {standardization_method}"
+        )
+
+    if use_existing_pca and existing_pca_key not in data.obsm.keys():
+        raise RuntimeError(
+            f"PCs {existing_pca_key} not found in data.obsm; "
+            f"run sc.pp.pca() first"
+        )
+    elif use_existing_pca:
+        pcs = data.obsm[existing_pca_key]
+    else:
+        pcs = None
+
     data.obsp[NOISE2SELF_DIST_KEY], npc, nn, nk = knn_noise2self(
         lref,
         neighbors=neighbors,
         npcs=npcs,
         verbose=verbose,
-        use_sparse=use_sparse,
+        return_errors=False,
         connectivity=connectivity,
         standardization_method=standardization_method,
+        pc_data=pcs,
         **kwargs
     )
 
@@ -86,6 +103,9 @@ def global_graph(
     data.uns[NOISE2SELF_KEY]['npcs'] = npc
     data.uns[NOISE2SELF_KEY]['neighbors'] = nn
     data.uns[NOISE2SELF_KEY]['local_neighbors'] = nk
+    data.uns[NOISE2SELF_KEY]['connectivity'] = connectivity
+    data.uns[NOISE2SELF_KEY]['layer'] = layer
+    data.uns[NOISE2SELF_KEY]['use_existing_pca'] = use_existing_pca
 
 
 def program_graphs(

@@ -10,6 +10,7 @@ N_BINS = 10
 
 NOISE2SELF_KEY = 'noise2self'
 NOISE2SELF_DIST_KEY = 'noise2self_distance_graph'
+NOISE2SELF_DENOISED_KEY = 'noise2self_denoised'
 
 METRIC_SUBKEY = 'metric'
 METRIC_GENE_SUBKEY = 'metric_genes'
