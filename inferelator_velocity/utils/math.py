@@ -19,14 +19,18 @@ except ImportError as err:
         f"{str(err)}"
     )
 
-    def dot(x, y, dense=False, cast=False):
+    def dot(x, y, dense=False, cast=False, out=None):
 
         z = x @ y
 
         if dense and sps.issparse(z):
             z = z.A
 
-        return z
+        if out is not None:
+            out[:] = z
+            return out
+        else:
+            return z
 
 
 def scalar_projection(

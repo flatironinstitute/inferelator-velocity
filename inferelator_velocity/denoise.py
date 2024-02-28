@@ -1,3 +1,5 @@
+import numpy as np
+
 from inferelator_velocity.utils.noise2self import (
     _dist_to_row_stochastic,
     dot
@@ -24,10 +26,13 @@ def denoise(
             f"run global_graph() first"
         )
 
-    data.layers[output_layer] = dot(
+    data.layers[output_layer] = np.zeros(lref.shape, dtype=np.float32)
+
+    dot(
         _dist_to_row_stochastic(data.obsp[graph_key]),
         lref,
-        dense=dense
+        dense=dense,
+        out=data.layers[output_layer]
     )
 
     return data
