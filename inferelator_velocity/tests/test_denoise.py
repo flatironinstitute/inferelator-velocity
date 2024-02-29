@@ -77,7 +77,7 @@ class TestDenoise(unittest.TestCase):
 
     def test_denoise_sparse_to_dense(self):
 
-        self.data.X = sps.csr_array(self.data.X)
+        self.data.X = sps.csr_matrix(self.data.X)
 
         denoise(
             self.data,
@@ -96,7 +96,7 @@ class TestDenoise(unittest.TestCase):
 
     def test_denoise_sparse_to_sparse(self):
 
-        self.data.X = sps.csr_array(self.data.X)
+        self.data.X = sps.csr_matrix(self.data.X)
 
         denoise(
             self.data,
