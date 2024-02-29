@@ -4,9 +4,9 @@ import scipy.sparse as sps
 
 from inferelator_velocity.utils.mcv import mcv_pcs
 
-
-rng = np.random.default_rng(100)
-COUNTS = rng.negative_binomial(5, 0.5, (1000, 10))
+from ._stubs import (
+    COUNTS
+)
 
 
 class TestMCV(unittest.TestCase):

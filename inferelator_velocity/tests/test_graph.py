@@ -4,16 +4,17 @@ import scipy.sparse as sps
 import numpy as np
 import numpy.testing as npt
 
-from inferelator_velocity.utils.graph import (get_shortest_paths, get_total_path, local_optimal_knn)
-
-N = 10
-
-DIST = np.tile(np.arange(N), (N, 1)).astype(float)
-CONN = 1 / (DIST + 1)
-
-KNN = np.diag(np.ones(N - 1), -1) + np.diag(np.ones(N - 1), 1)
-KNN[0, N - 1] = 1
-KNN[N - 1, 0] = 1
+from inferelator_velocity.utils.graph import (
+    get_shortest_paths,
+    get_total_path,
+    local_optimal_knn
+)
+from ._stubs import (
+    KNN_N as N,
+    DIST,
+    CONN,
+    KNN
+)
 
 COL = {
     'a': ('b', 0, 0.5),
