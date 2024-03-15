@@ -8,7 +8,7 @@ from ._stubs import (
     EXPRESSION_ADATA
 )
 
-from inferelator_velocity.denoise import (
+from inferelator_velocity.denoise_data import (
     _dist_to_row_stochastic,
     denoise
 )
