@@ -9,7 +9,8 @@ from inferelator_velocity.utils.misc import (
 )
 from inferelator_velocity.utils.math import (
     pairwise_metric,
-    mcv_mse
+    mcv_mse,
+    array_sum
 )
 
 
@@ -121,7 +122,7 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
     if sps.issparse(count_data):
 
         normalization_depth = np.median(
-            count_data.sum(axis=1).A1
+            array_sum(count_data, axis=1)
         )
 
         if sps.isspmatrix_csr(count_data):
@@ -162,19 +163,55 @@ def _molecular_split(count_data, random_seed=800, p=0.5):
     return count_data, cv_data, normalization_depth
 
 
-def mcv_comp(x, pc, rotation, metric, **metric_kwargs):
+def mcv_comp(
+    x,
+    pc,
+    rotation,
+    metric,
+    calculate_r2=False,
+    column_tss=None,
+    **metric_kwargs
+):
 
     if metric != 'mse':
-        return pairwise_metric(
+        metric_arr = pairwise_metric(
             x,
             pc @ rotation,
             metric=metric,
             **metric_kwargs
         )
     else:
-        return mcv_mse(
+        metric_arr = mcv_mse(
             x,
             pc,
             rotation,
             **metric_kwargs
         )
+
+    if calculate_r2:
+        if column_tss is None:
+            column_tss = array_sum(x, axis=0, squared=True)
+
+        r2_array = mcv_mse(
+            x,
+            pc,
+            rotation,
+            axis=0,
+            **metric_kwargs
+        )
+
+        np.divide(
+            r2_array,
+            column_tss,
+            where=column_tss != 0,
+            out=r2_array
+        )
+
+        r2_array[column_tss == 0] = 0.
+        r2_array *= -1
+        r2_array += 1
+
+        return metric_arr, r2_array
+
+    else:
+        return metric_arr

@@ -1,5 +1,4 @@
 import numpy as np
-import numba
 import scipy.sparse as sps
 from .misc import (
     make_vector_2D,
@@ -140,7 +139,7 @@ def _calc_se(x, y, slope):
         return se_y / mse_x
 
 
-def _log_loss(x, y):
+def _log_loss(x, y, axis=1):
 
     if y is None:
         raise ValueError(
@@ -168,12 +167,12 @@ def _log_loss(x, y):
         x,
         np.log(y)
     )
-    err = err.sum(axis=1)
+    err = err.sum(axis=axis)
     err *= -1
     return err
 
 
-def _mse(x, y):
+def _mse(x, y, axis=1):
 
     if y is not None:
         ssr = x - y
@@ -188,17 +187,17 @@ def _mse(x, y):
     else:
         ssr **= 2
 
-    return ssr.sum(axis=1)
+    return ssr.sum(axis=axis)
 
 
-def _mae(x, y):
+def _mae(x, y, axis=1):
 
     if y is not None:
         ssr = x - y
     else:
         ssr = x
 
-    return ssr.sum(axis=1)
+    return ssr.sum(axis=axis)
 
 
 def pairwise_metric(
@@ -206,6 +205,7 @@ def pairwise_metric(
     y,
     metric='mse',
     by_row=False,
+    axis=1,
     **kwargs
 ):
     """
@@ -233,6 +233,7 @@ def pairwise_metric(
     loss = metric(
         x,
         y,
+        axis=axis,
         **kwargs
     )
 
@@ -241,7 +242,7 @@ def pairwise_metric(
     except AttributeError:
         pass
 
-    loss = loss / x.shape[1]
+    loss = loss / x.shape[axis]
 
     if by_row:
         return loss
@@ -343,77 +344,50 @@ def coefficient_of_variation(
     )
 
 
-@numba.njit(parallel=False)
-def _csr_row_divide(
-    a_data,
-    a_indptr,
-    row_vec
+def mcv_mse(
+    x,
+    pc,
+    rotation,
+    by_row=False,
+    axis=1,
+    **metric_kwargs
 ):
 
-    n_row = row_vec.shape[0]
+    if sps.issparse(x):
 
-    for i in numba.prange(n_row):
-        a_data[a_indptr[i]:a_indptr[i + 1]] /= row_vec[i]
+        from .sparse_math import mcv_mse_sparse
 
+        return mcv_mse_sparse(
+            x,
+            pc,
+            rotation,
+            by_row=by_row,
+            axis=axis,
+            **metric_kwargs
+        )
 
-@numba.njit(parallel=False)
-def _mse_rowwise(
-    a_data,
-    a_indices,
-    a_indptr,
-    b_pcs,
-    b_rotation
-):
+    else:
 
-    n_row = b_pcs.shape[0]
-
-    output = np.zeros(n_row, dtype=float)
-
-    for i in numba.prange(n_row):
-
-        _idx_a = a_indices[a_indptr[i]:a_indptr[i + 1]]
-        _nnz_a = _idx_a.shape[0]
-
-        row = b_pcs[i, :] @ b_rotation
-
-        if _nnz_a == 0:
-            continue
-
-        else:
-
-            row[_idx_a] -= a_data[a_indptr[i]:a_indptr[i + 1]]
-
-        output[i] = np.mean(row ** 2)
-
-    return output
+        return pairwise_metric(
+            x,
+            pc @ rotation,
+            metric='mse',
+            by_row=by_row,
+            axis=axis,
+            **metric_kwargs
+        )
 
 
-@numba.njit(parallel=False)
-def _sum_columns(data, indices, n_col):
-
-    output = np.zeros(n_col, dtype=data.dtype)
-
-    for i in numba.prange(data.shape[0]):
-        output[indices[i]] += data[i]
-
-    return output
-
-
-@numba.njit(parallel=False)
-def _sum_rows(data, indptr):
-
-    output = np.zeros(indptr.shape[0] - 1, dtype=data.dtype)
-
-    for i in numba.prange(output.shape[0]):
-        output[i] = np.sum(data[indptr[i]:indptr[i + 1]])
-
-    return output
-
-
-def array_sum(array, axis=None):
+def array_sum(array, axis=None, squared=False):
 
     if not is_csr(array):
-        _sums = array.sum(axis=axis)
+
+        if squared and not sps.issparse(array):
+            _sums = (array ** 2).sum(axis=axis)
+        elif squared:
+            _sums = array.power(2).sum(axis=axis)
+        else:
+            _sums = array.sum(axis=axis)
         try:
             _sums = _sums.A1
         except AttributeError:
@@ -423,44 +397,11 @@ def array_sum(array, axis=None):
     if axis is None:
         return np.sum(array.data)
 
-    elif axis == 0:
-        return _sum_columns(
-            array.data,
-            array.indices,
-            array.shape[1]
-        )
-
-    elif axis == 1:
-        return _sum_rows(
-            array.data,
-            array.indptr
-        )
-
-
-def mcv_mse(x, pc, rotation, by_row=False, **metric_kwargs):
-
-    if sps.issparse(x):
-
-        y = _mse_rowwise(
-            x.data,
-            x.indices,
-            x.indptr,
-            np.ascontiguousarray(pc),
-            np.ascontiguousarray(rotation, dtype=pc.dtype)
-        )
-
-        if by_row:
-            return y
-
-        else:
-            return np.mean(y)
-
     else:
+        from .sparse_math import sparse_sum
 
-        return pairwise_metric(
-            x,
-            pc @ rotation,
-            metric='mse',
-            by_row=by_row,
-            **metric_kwargs
+        return sparse_sum(
+            array,
+            axis=axis,
+            squared=squared
         )

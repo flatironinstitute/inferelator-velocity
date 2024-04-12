@@ -226,12 +226,15 @@ class TruncRobustScaler(RobustScaler):
         return self
 
 
-def _normalize_for_pca_log(
+def _normalize_for_pca(
     count_data,
-    target_sum=None
+    target_sum=None,
+    log=False,
+    scale=False
 ):
     """
     Depth normalize and log pseudocount
+    This operation will be entirely inplace
 
     :param count_data: Integer data
     :type count_data: ad.AnnData
@@ -239,34 +242,38 @@ def _normalize_for_pca_log(
     :rtype: np.ad.AnnData
     """
 
-    sc.pp.normalize_total(
-        count_data,
-        target_sum=target_sum
-    )
-    sc.pp.log1p(count_data)
-    return count_data
+    if is_csr(count_data.X):
+        from .sparse_math import sparse_normalize_total
+        sparse_normalize_total(
+            count_data.X,
+            target_sum=target_sum
+        )
 
+    else:
+        sc.pp.normalize_total(
+            count_data,
+            target_sum=target_sum
+        )
 
-def _normalize_for_pca_scale(
-    count_data,
-    target_sum=None
-):
-    """
-    Depth normalize and scale using truncated robust scaling
+    if log:
+        sc.pp.log1p(count_data)
 
-    :param count_data: Integer data
-    :type count_data: ad.AnnData
-    :return: Standardized data
-    :rtype: ad.AnnData
-    """
+    if scale:
+        scaler = TruncRobustScaler(with_centering=False)
+        scaler.fit(count_data.X)
 
-    sc.pp.normalize_total(
-        count_data,
-        target_sum=target_sum
-    )
-    count_data.X = TruncRobustScaler(with_centering=False).fit_transform(
-        count_data.X
-    )
+        if is_csr(count_data.X):
+            from .sparse_math import _csr_column_divide
+            _csr_column_divide(
+                count_data.X.data,
+                count_data.X.indices,
+                scaler.scale_
+            )
+        else:
+            count_data.X = scaler.transform(
+                count_data.X
+            )
+
     return count_data
 
 
@@ -277,29 +284,29 @@ def standardize_data(
 ):
 
     if method == 'log':
-        return _normalize_for_pca_log(
+        return _normalize_for_pca(
             count_data,
-            target_sum
+            target_sum,
+            log=True
         )
     elif method == 'scale':
-        return _normalize_for_pca_scale(
+        return _normalize_for_pca(
             count_data,
-            target_sum
+            target_sum,
+            scale=True
         )
     elif method == 'log_scale':
-        data = _normalize_for_pca_log(
+        return _normalize_for_pca(
             count_data,
-            target_sum
+            target_sum,
+            log=True,
+            scale=True
         )
-        data.X = TruncRobustScaler(with_centering=False).fit_transform(
-            data.X
-        )
-        return data
     elif method is None:
         return count_data
     else:
         raise ValueError(
-            f'method must be `log`, `scale`, or `log_scale`, '
+            f'method must be None, `log`, `scale`, or `log_scale`, '
             f'{method} provided'
         )
 

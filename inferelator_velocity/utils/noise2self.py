@@ -15,8 +15,7 @@ from .graph import (
 from .math import (
     dot,
     pairwise_metric,
-    array_sum,
-    _csr_row_divide
+    array_sum
 )
 from .misc import (
     vprint,
@@ -398,6 +397,8 @@ def _dist_to_row_stochastic(graph):
         # Somehow faster then element-wise \_o_/
 
         if is_csr(graph):
+            from .sparse_math import _csr_row_divide
+
             _csr_row_divide(
                 graph.data,
                 graph.indptr,
