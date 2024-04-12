@@ -3,10 +3,6 @@ import anndata as ad
 from scipy import sparse
 
 import scanpy as sc
-from scanpy.neighbors import (
-    compute_neighbors_umap,
-    _compute_connectivities_umap
-)
 
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import pairwise_distances
@@ -17,7 +13,8 @@ from .utils.mcv import mcv_pcs
 from .utils import (
     vprint,
     copy_count_layer,
-    standardize_data
+    standardize_data,
+    compute_neighbors
 )
 from .metrics import (
     information_distance,
@@ -287,15 +284,10 @@ def _leiden_cluster(
 
     # Calculate neighbors using scanpy internals
     # (Needed as there's no way to provide a distance matrix)
-    knn_i, knn_dist, _ = compute_neighbors_umap(
+    knn_dist, knn_connect = compute_neighbors(
         dist_array,
         n_neighbors,
         random_state,
-        metric='precomputed'
-    )
-
-    knn_dist, knn_connect = _compute_connectivities_umap(
-        knn_i, knn_dist, dist_array.shape[0], n_neighbors
     )
 
     if knn_connect.size < int(1e6) and sparse.issparse(knn_connect):

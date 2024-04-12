@@ -8,7 +8,7 @@ from .misc import (
     TruncRobustScaler
 )
 from .aggregation import aggregate_sliding_window_times
-from .graph import local_optimal_knn
+from .graph import local_optimal_knn, compute_neighbors
 from .noise2self import knn_noise2self
 
 from .math import (

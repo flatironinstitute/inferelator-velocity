@@ -1,12 +1,44 @@
 import numpy as np
 import numba
 from scipy.sparse.csgraph import shortest_path
+from umap.umap_ import nearest_neighbors
+
 from scipy.sparse import (
     issparse as _is_sparse,
     isspmatrix_csr as _is_csr,
     csr_matrix as _csr
 )
 import itertools
+
+try:
+    from scanpy.neighbors import _compute_connectivities_umap as _connect_umap
+except ImportError:
+    from scanpy.neighbors._connectivity import umap as _connect_umap
+
+
+def compute_neighbors(
+    array,
+    n_neighbors,
+    random_state,
+    metric='precomputed',
+    **metric_kwargs
+):
+
+    knn_i, knn_dist, _ = nearest_neighbors(
+        array,
+        n_neighbors,
+        random_state=random_state,
+        metric=metric,
+        metric_kwds=metric_kwargs,
+        n_jobs=-1,
+        angular=False
+    )
+
+    knn_dist, knn_connect = _connect_umap(
+        knn_i, knn_dist, array.shape[0], n_neighbors
+    )
+
+    return knn_dist, knn_connect
 
 
 def get_shortest_paths(graph, select_nodes, graph_method="D"):
