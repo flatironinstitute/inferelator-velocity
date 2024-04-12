@@ -263,10 +263,9 @@ def _normalize_for_pca(
         scaler.fit(count_data.X)
 
         if is_csr(count_data.X):
-            from .sparse_math import _csr_column_divide
-            _csr_column_divide(
-                count_data.X.data,
-                count_data.X.indices,
+            from .sparse_math import sparse_normalize_columns
+            sparse_normalize_columns(
+                count_data.X,
                 scaler.scale_
             )
         else:

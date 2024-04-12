@@ -59,6 +59,30 @@ def sparse_sum(sparse_array, axis=None, squared=False):
         )
 
 
+def sparse_normalize_columns(sparse_array, column_norm_vec):
+
+    if not is_csr(sparse_array):
+        raise ValueError("sparse_sum requires a sparse csr_array")
+
+    if sparse_array.data.dtype == np.int32:
+        dtype = np.float32
+    elif sparse_array.data.dtype == np.int64:
+        dtype = np.float64
+    else:
+        dtype = None
+
+    if dtype is not None:
+        float_view = sparse_array.data.view(dtype)
+        float_view[:] = sparse_array.data
+        sparse_array.data = float_view
+
+    _csr_column_divide(
+        sparse_array.data,
+        sparse_array.indices,
+        column_norm_vec
+    )
+
+
 def sparse_normalize_total(sparse_array, target_sum=10_000):
 
     if not is_csr(sparse_array):
