@@ -35,7 +35,7 @@ def compute_neighbors(
     )
 
     knn_dist, knn_connect = _connect_umap(
-        knn_i, knn_dist, array.shape[0], n_neighbors
+        knn_i, knn_dist, n_obs=array.shape[0], n_neighbors=n_neighbors
     )
 
     return knn_dist, knn_connect
