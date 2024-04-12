@@ -13,7 +13,13 @@ import itertools
 try:
     from scanpy.neighbors import _compute_connectivities_umap as _connect_umap
 except ImportError:
-    from scanpy.neighbors._connectivity import umap as _connect_umap
+    from scanpy.neighbors._connectivity import umap as _scanpy_connect
+
+    def _connect_umap(i, d, **kwargs):
+
+        return d, _scanpy_connect(
+            i, d, **kwargs
+        )
 
 
 def compute_neighbors(
