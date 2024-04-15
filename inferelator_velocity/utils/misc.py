@@ -210,9 +210,24 @@ def copy_count_layer(data, layer, counts_layer=None):
 class TruncRobustScaler(RobustScaler):
 
     def fit(self, X, y=None):
-        super().fit(X, y)
 
-        # Use StandardScaler to deal with sparse & dense easily
+        if isinstance(X, (sps.csr_matrix, sps.csc_array)):
+            # Use custom extractor to turn X into a CSC with no
+            # indices array; RobustScaler makes an undesirabe
+            # CSR->CSC conversion
+            from .sparse_math import sparse_csr_extract_columns
+            super().fit(
+                sparse_csr_extract_columns(X, fake_csc_matrix=True),
+                y
+            )
+        else:
+            super().fit(
+                X,
+                y
+            )
+
+        # Use StandardScaler to deal with sparse & dense
+        # There are C extensions for CSR variance without copy
         _std_scale = StandardScaler(with_mean=False).fit(X)
 
         _post_robust_var = _std_scale.var_ / (self.scale_ ** 2)

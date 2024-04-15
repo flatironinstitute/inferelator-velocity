@@ -112,6 +112,42 @@ def sparse_normalize_total(sparse_array, target_sum=10_000):
     )
 
 
+def sparse_csr_extract_columns(
+    sparse_array,
+    fake_csc_matrix
+):
+
+    col_indptr = _csr_to_csc_indptr(
+        sparse_array.indices,
+        sparse_array.shape[1]
+    )
+
+    print(col_indptr)
+
+    new_data = _csr_extract_columns(
+        sparse_array.data,
+        sparse_array.indices,
+        col_indptr
+    )
+
+    print(new_data)
+
+    if fake_csc_matrix:
+        arr = sps.csc_matrix(
+            sparse_array.shape,
+            dtype=sparse_array.dtype
+        )
+
+        arr.data = new_data
+        arr.indices = np.zeros((1,), dtype=col_indptr.dtype)
+        arr.indptr = col_indptr
+
+        return arr
+
+    else:
+        return new_data, col_indptr
+
+
 @numba.njit(parallel=False)
 def _mse_rowwise(
     a_data,
@@ -229,6 +265,38 @@ def _csr_column_divide(data, indices, column_normalization_vec):
 
     for i, idx in enumerate(indices):
         data[i] /= column_normalization_vec[idx]
+
+
+def _csr_column_nnz(indices, n_col):
+
+    return np.bincount(indices, minlength=n_col)
+
+
+def _csr_to_csc_indptr(indices, n_col):
+
+    output = np.zeros(n_col + 1, dtype=int)
+
+    np.cumsum(
+        _csr_column_nnz(indices, n_col),
+        out=output[1:]
+    )
+
+    return output
+
+
+@numba.njit(parallel=False)
+def _csr_extract_columns(data, col_indices, new_col_indptr):
+
+    output_data = np.zeros_like(data)
+    col_indptr_used = np.zeros_like(new_col_indptr)
+
+    for i in range(data.shape[0]):
+        _col = col_indices[i]
+        _new_pos = new_col_indptr[_col] + col_indptr_used[_col]
+        output_data[_new_pos] = data[i]
+        col_indptr_used[_col] += 1
+
+    return output_data
 
 
 def is_csr(x):
