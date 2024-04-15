@@ -122,15 +122,11 @@ def sparse_csr_extract_columns(
         sparse_array.shape[1]
     )
 
-    print(col_indptr)
-
     new_data = _csr_extract_columns(
         sparse_array.data,
         sparse_array.indices,
         col_indptr
     )
-
-    print(new_data)
 
     if fake_csc_matrix:
         arr = sps.csc_matrix(
