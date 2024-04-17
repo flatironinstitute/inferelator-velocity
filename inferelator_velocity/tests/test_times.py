@@ -2,6 +2,7 @@ import unittest
 
 import numpy as np
 import anndata as ad
+import numpy.testing as npt
 
 from inferelator_velocity.times import (
     program_times,
@@ -48,9 +49,9 @@ class TestTimeEsts(unittest.TestCase):
             verbose=True
         )
 
-        self.assertListEqual(
+        npt.assert_almost_equal(
             [0, 0.5, 1.],
-            [times[v] for k, v in {'a': 2, 'b': 5, 'c': 9}.items()]
+            [times[v] for _, v in {'a': 2, 'b': 5, 'c': 9}.items()]
         )
 
 
@@ -80,9 +81,9 @@ class TestProgramTimes(unittest.TestCase):
 
         times = self.adata.obs['program_0_time']
 
-        self.assertListEqual(
+        npt.assert_almost_equal(
             [0, 0.5, 1.],
-            [times[v] for k, v in {'a': 2, 'b': 5, 'c': 9}.items()]
+            [times[v] for _, v in {'a': 2, 'b': 5, 'c': 9}.items()]
         )
 
     def test_program_times_exceptions(self):

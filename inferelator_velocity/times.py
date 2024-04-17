@@ -242,7 +242,7 @@ def calculate_times(
     # If the number of components to use is not provided,
     # Do molecular crossvalidation
     if n_comps is None:
-        _mcv_error = mcv_pcs(count_data, n=1, **mcv_kwargs)
+        _mcv_error = mcv_pcs(count_data, n=1, zero_center=True, **mcv_kwargs)
         n_comps = np.median(_mcv_error, axis=0).argmin()
     else:
         _mcv_error = None

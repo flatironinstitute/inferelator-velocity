@@ -15,17 +15,23 @@ from inferelator_velocity.utils.math import (
     sparse_dot_patch
 )
 
+try:
+    from ._truncated_mkl import TruncatedSVDMKL as TruncatedSVD
+except ImportError:
+    from sklearn.decomposition import TruncatedSVD
+
 
 def mcv_pcs(
     count_data,
-    n=5,
+    n=1,
     n_pcs=100,
     random_seed=800,
     p=0.5,
     metric='mse',
     standardization_method='log',
     metric_kwargs={},
-    verbose=False
+    verbose=False,
+    zero_center=False
 ):
     """
     Calculate a loss metric based on molecular crossvalidation
@@ -93,14 +99,24 @@ def mcv_pcs(
 
             vprint(f"Iter #{i}: Initial PCA ({n_pcs} comps)")
 
-            if sps.issparse(A.X):
-                sparse_dot_patch(A.X)
-
             # Calculate PCA
-            sc.pp.pca(
-                A,
-                n_comps=n_pcs
-            )
+            if zero_center:
+                sc.pp.pca(
+                    A,
+                    n_comps=n_pcs
+                )
+
+            else:
+                scaler = TruncatedSVD(n_components=n_pcs)
+
+                A.obsm['X_pca'] = scaler.fit_transform(A.X)
+                A.varm['PCs'] = scaler.components_.T
+                A.uns['pca'] = {
+                    "variance": scaler.explained_variance_,
+                    "variance_ratio": scaler.explained_variance_ratio_,
+                }
+
+                del scaler
 
             # Null model (no PCs)
 

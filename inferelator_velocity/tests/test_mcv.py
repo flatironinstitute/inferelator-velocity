@@ -47,7 +47,7 @@ class TestMCV(unittest.TestCase):
             np.argmin(
                 mcv_pcs(data, n=1, n_pcs=5, verbose=True)
             ),
-            0
+            1
         )
 
     def test_sparse_log_scale(self):
@@ -57,7 +57,7 @@ class TestMCV(unittest.TestCase):
             np.argmin(
                 mcv_pcs(data, n=1, n_pcs=5, standardization_method='log_scale', verbose=True)
             ),
-            0
+            1
         )
 
 
