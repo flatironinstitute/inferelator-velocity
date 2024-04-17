@@ -45,7 +45,7 @@ class TestMCV(unittest.TestCase):
         data = sps.csr_matrix(COUNTS)
         self.assertEqual(
             np.argmin(
-                mcv_pcs(data, n=1, n_pcs=5)
+                mcv_pcs(data, n=1, n_pcs=5, verbose=True)
             ),
             0
         )
@@ -55,7 +55,7 @@ class TestMCV(unittest.TestCase):
 
         self.assertEqual(
             np.argmin(
-                mcv_pcs(data, n=1, n_pcs=5, standardization_method='log_scale')
+                mcv_pcs(data, n=1, n_pcs=5, standardization_method='log_scale', verbose=True)
             ),
             0
         )

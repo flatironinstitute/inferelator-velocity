@@ -1,3 +1,4 @@
+import time
 import tqdm
 import numpy as np
 import scipy.sparse as sps
@@ -10,7 +11,8 @@ from inferelator_velocity.utils.misc import (
 from inferelator_velocity.utils.math import (
     pairwise_metric,
     mcv_mse,
-    array_sum
+    array_sum,
+    sparse_dot_patch
 )
 
 
@@ -22,7 +24,8 @@ def mcv_pcs(
     p=0.5,
     metric='mse',
     standardization_method='log',
-    metric_kwargs={}
+    metric_kwargs={},
+    verbose=False
 ):
     """
     Calculate a loss metric based on molecular crossvalidation
@@ -49,15 +52,32 @@ def mcv_pcs(
 
     metric_arr = np.zeros((n, n_pcs + 1), dtype=float)
 
+    if verbose:
+        _t = time.time()
+
+        def vprint(*args):
+            _dt = time.time() - _t
+            print(f"[{_dt:0.1f} seconds] ", *args)
+
+    else:
+
+        def vprint(*args):
+            pass
+
     # Use a single progress bar for nested loop
     with tqdm.tqdm(total=n * (n_pcs + 1)) as pbar:
 
         for i in range(n):
+
+            vprint(f"Iter #{i}: Splitting data {count_data.shape}")
+
             A, B, n_counts = _molecular_split(
                 count_data,
                 random_seed=random_seed,
                 p=p
             )
+
+            vprint(f"Iter #{i}: Standardizing data ({standardization_method})")
 
             A = standardize_data(
                 A,
@@ -71,6 +91,11 @@ def mcv_pcs(
                 method=standardization_method
             )
 
+            vprint(f"Iter #{i}: Initial PCA ({n_pcs} comps)")
+
+            if sps.issparse(A.X):
+                sparse_dot_patch(A.X)
+
             # Calculate PCA
             sc.pp.pca(
                 A,
@@ -78,6 +103,8 @@ def mcv_pcs(
             )
 
             # Null model (no PCs)
+
+            vprint(f"Iter #{i}: 0 PCs")
 
             if sps.issparse(B.X):
                 metric_arr[i, 0] = np.sum(B.X.data ** 2) / size
@@ -88,6 +115,7 @@ def mcv_pcs(
 
             # Calculate metric for 1-n_pcs number of PCs
             for j in range(1, n_pcs + 1):
+                vprint(f"Iter #{i}: {j} PCs")
                 metric_arr[i, j] = mcv_comp(
                     B.X,
                     A.obsm['X_pca'][:, 0:j],

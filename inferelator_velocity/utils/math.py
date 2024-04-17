@@ -1,5 +1,7 @@
 import numpy as np
 import scipy.sparse as sps
+import types
+
 from .misc import (
     make_vector_2D,
     is_csr
@@ -7,6 +9,10 @@ from .misc import (
 
 try:
     from sparse_dot_mkl import dot_product_mkl as dot
+
+    def sparse_dot_patch(spmat):
+
+        spmat.dot = types.MethodType(dot, spmat)
 
 except ImportError as err:
 
@@ -30,6 +36,10 @@ except ImportError as err:
             return out
         else:
             return z
+
+    def sparse_dot_patch(spmat):
+
+        pass
 
 
 def scalar_projection(
