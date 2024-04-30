@@ -11,8 +11,7 @@ from inferelator_velocity.utils.misc import (
 from inferelator_velocity.utils.math import (
     pairwise_metric,
     mcv_mse,
-    array_sum,
-    sparse_dot_patch
+    array_sum
 )
 
 try:

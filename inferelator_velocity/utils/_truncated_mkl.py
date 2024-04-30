@@ -126,7 +126,13 @@ def randomized_range_finder(
     # Perform power iterations with Q to further 'imprint' the top
     # singular vectors of A in Q
     for _ in range(n_iter):
-        Q, _ = normalizer(safe_sparse_dot(A, Q, dense_output=True))
+        Q, _ = normalizer(
+            safe_sparse_dot(
+                A,
+                Q,
+                dense_output=True
+            )
+        )
         Q, _ = normalizer(
             safe_sparse_dot(
                 np.ascontiguousarray(Q.T),
@@ -219,7 +225,12 @@ def randomized_svd(
 class TruncatedSVDMKL(TruncatedSVD):
 
     def fit_transform(self, X, y=None):
-        X = self._validate_data(X, accept_sparse=["csr", "csc"], ensure_min_features=2)
+        X = self._validate_data(
+            X,
+            accept_sparse=["csr", "csc"],
+            ensure_min_features=2,
+            dtype=[np.float64, np.float32, float]
+        )
         random_state = check_random_state(self.random_state)
 
         if self.algorithm == "arpack":
