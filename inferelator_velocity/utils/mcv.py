@@ -4,6 +4,7 @@ import numpy as np
 import scipy.sparse as sps
 import scanpy as sc
 import anndata as ad
+import warnings
 
 from inferelator_velocity.utils.misc import (
     standardize_data
@@ -16,8 +17,11 @@ from inferelator_velocity.utils.math import (
 
 try:
     from ._truncated_mkl import TruncatedSVDMKL as TruncatedSVD
+    _mkl=True
+
 except ImportError:
     from sklearn.decomposition import TruncatedSVD
+    _mkl=False
 
 
 def mcv_pcs(
@@ -106,6 +110,12 @@ def mcv_pcs(
                 )
 
             else:
+
+                if not _mkl:
+                    warnings.warn(
+                        "Defaulting to single-threaded sklearn TruncatedSVD"
+                    )
+
                 scaler = TruncatedSVD(n_components=n_pcs)
 
                 A.obsm['X_pca'] = scaler.fit_transform(A.X)
