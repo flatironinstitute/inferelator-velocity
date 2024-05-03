@@ -17,11 +17,11 @@ from inferelator_velocity.utils.math import (
 
 try:
     from ._truncated_mkl import TruncatedSVDMKL as TruncatedSVD
-    _mkl=True
+    _mkl = True
 
 except ImportError:
     from sklearn.decomposition import TruncatedSVD
-    _mkl=False
+    _mkl = False
 
 
 def mcv_pcs(
@@ -86,12 +86,20 @@ def mcv_pcs(
                 p=p
             )
 
-            vprint(f"Iter #{i}: Standardizing data ({standardization_method})")
+            vprint(
+                f"Iter #{i}: Standardizing Train ({standardization_method}) "
+                f"{A.shape}"
+            )
 
             A = standardize_data(
                 A,
                 target_sum=n_counts,
                 method=standardization_method
+            )
+
+            vprint(
+                f"Iter #{i}: Standardizing Test ({standardization_method}) "
+                f"{B.shape}"
             )
 
             B = standardize_data(
@@ -100,16 +108,16 @@ def mcv_pcs(
                 method=standardization_method
             )
 
-            vprint(f"Iter #{i}: Initial PCA ({n_pcs} comps)")
-
             # Calculate PCA
             if zero_center:
+                vprint(f"Iter #{i}: Initial Scanpy PCA ({n_pcs} comps)")
                 sc.pp.pca(
                     A,
                     n_comps=n_pcs
                 )
 
             else:
+                vprint(f"Iter #{i}: Initial TruncatedSVD PCA ({n_pcs} comps)")
 
                 if not _mkl:
                     warnings.warn(
