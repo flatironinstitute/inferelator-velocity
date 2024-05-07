@@ -1,15 +1,11 @@
 import numpy as np
 import anndata as ad
-import scanpy as sc
-import scipy.sparse as sps
 
 import pandas.api.types as pat
 import warnings
 
-from sklearn.preprocessing import (
-    RobustScaler,
-    StandardScaler
-)
+from scself import TruncRobustScaler
+from scself.utils import standardize_data
 
 
 def order_dict_to_lists(order_dict):
@@ -207,124 +203,6 @@ def copy_count_layer(data, layer, counts_layer=None):
     return d
 
 
-class TruncRobustScaler(RobustScaler):
-
-    def fit(self, X, y=None):
-
-        if isinstance(X, (sps.csr_matrix, sps.csc_array)):
-            # Use custom extractor to turn X into a CSC with no
-            # indices array; RobustScaler makes an undesirabe
-            # CSR->CSC conversion
-            from .sparse_math import sparse_csr_extract_columns
-            super().fit(
-                sparse_csr_extract_columns(X, fake_csc_matrix=True),
-                y
-            )
-        else:
-            super().fit(
-                X,
-                y
-            )
-
-        # Use StandardScaler to deal with sparse & dense
-        # There are C extensions for CSR variance without copy
-        _std_scale = StandardScaler(with_mean=False).fit(X)
-
-        _post_robust_var = _std_scale.var_ / (self.scale_ ** 2)
-        _rescale_idx = _post_robust_var > 1
-
-        _scale_mod = np.ones_like(self.scale_)
-        _scale_mod[_rescale_idx] = np.sqrt(_post_robust_var[_rescale_idx])
-
-        self.scale_ *= _scale_mod
-
-        return self
-
-
-def _normalize_for_pca(
-    count_data,
-    target_sum=None,
-    log=False,
-    scale=False
-):
-    """
-    Depth normalize and log pseudocount
-    This operation will be entirely inplace
-
-    :param count_data: Integer data
-    :type count_data: ad.AnnData
-    :return: Standardized data
-    :rtype: np.ad.AnnData
-    """
-
-    if is_csr(count_data.X):
-        from .sparse_math import sparse_normalize_total
-        sparse_normalize_total(
-            count_data.X,
-            target_sum=target_sum
-        )
-
-    else:
-        sc.pp.normalize_total(
-            count_data,
-            target_sum=target_sum
-        )
-
-    if log:
-        sc.pp.log1p(count_data)
-
-    if scale:
-        scaler = TruncRobustScaler(with_centering=False)
-        scaler.fit(count_data.X)
-
-        if is_csr(count_data.X):
-            from .sparse_math import sparse_normalize_columns
-            sparse_normalize_columns(
-                count_data.X,
-                scaler.scale_
-            )
-        else:
-            count_data.X = scaler.transform(
-                count_data.X
-            )
-
-    return count_data
-
-
-def standardize_data(
-    count_data,
-    target_sum=None,
-    method='log'
-):
-
-    if method == 'log':
-        return _normalize_for_pca(
-            count_data,
-            target_sum,
-            log=True
-        )
-    elif method == 'scale':
-        return _normalize_for_pca(
-            count_data,
-            target_sum,
-            scale=True
-        )
-    elif method == 'log_scale':
-        return _normalize_for_pca(
-            count_data,
-            target_sum,
-            log=True,
-            scale=True
-        )
-    elif method is None:
-        return count_data
-    else:
-        raise ValueError(
-            f'method must be None, `log`, `scale`, or `log_scale`, '
-            f'{method} provided'
-        )
-
-
 def ragged_lists_to_array(
     lists,
     pad_value=-1
@@ -346,11 +224,3 @@ def ragged_lists_to_array(
          for c in range(_max_len)]
          for x in lists]
     )
-
-
-def is_csr(x):
-    return sps.isspmatrix_csr(x) or isinstance(x, sps.csr_array)
-
-
-def is_csc(x):
-    return sps.isspmatrix_csc(x) or isinstance(x, sps.csc_array)

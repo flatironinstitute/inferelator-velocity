@@ -3,19 +3,13 @@ from .misc import (
     vprint,
     get_bins,
     copy_count_layer,
-    standardize_data,
     ragged_lists_to_array,
-    TruncRobustScaler
+    TruncRobustScaler,
+    standardize_data
 )
 from .aggregation import aggregate_sliding_window_times
 from .graph import local_optimal_knn, compute_neighbors
 from .noise2self import knn_noise2self
-
-from .math import (
-    variance,
-    coefficient_of_variation,
-    dot
-)
 
 import numpy as _np
 

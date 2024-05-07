@@ -45,7 +45,8 @@ def assign_genes_to_programs(
     :type data: ad.AnnData
     :param layer: Layer containing count data, defaults to "X"
     :type layer: str, optional
-    :param standardization_method: Normalize per cell and log, defaults to 'log'
+    :param standardization_method: Normalization method per cell,
+        defaults to 'log'
     :type standardization_method: str, optional
     :param programs: Program IDs to calculate times for, defaults to None
     :type programs: tuple, optional

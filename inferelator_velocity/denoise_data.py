@@ -1,15 +1,13 @@
 import numpy as np
 import scipy.sparse as sps
 
-from inferelator_velocity.utils.math import array_sum
-from inferelator_velocity.utils.noise2self import (
-    _dist_to_row_stochastic,
-    dot
-)
 from inferelator_velocity.utils.keys import (
     NOISE2SELF_DIST_KEY,
     NOISE2SELF_DENOISED_KEY
 )
+from scself._noise2self.graph import _dist_to_row_stochastic
+from scself.utils import array_sum
+from scself import dot
 
 
 def denoise(

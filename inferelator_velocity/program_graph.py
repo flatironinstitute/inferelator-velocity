@@ -115,7 +115,6 @@ def program_graphs(
     programs=None,
     neighbors=None,
     npcs=None,
-    use_sparse=True,
     connectivity=False,
     verbose=False,
     standardization_method='log',
@@ -139,10 +138,6 @@ def program_graphs(
     :param npcs: Number of PCs to use to embed graph,
         defaults to None (5 to 105 by 10s)
     :type npcs: np.ndarray, optional
-    :param use_sparse: Use sparse data structures (slower).
-        Will densify a sparse expression matrix (faster, more memory) if False,
-        defaults to True
-    :type use_sparse: bool, optional
     :param connectivity: Use a connectivity graph instead of a distance graph,
         defaults to False
     :type connectivity: bool, optional
@@ -182,7 +177,6 @@ def program_graphs(
             neighbors=neighbors,
             npcs=npcs,
             verbose=verbose,
-            use_sparse=use_sparse,
             connectivity=connectivity,
             standardization_method=standardization_method,
             **kwargs
