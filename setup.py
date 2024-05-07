@@ -10,9 +10,8 @@ install_requires = [
     "joblib",
     "scikit-learn",
     "tqdm",
-    "sparse_dot_mkl",
     "leidenalg",
-    "numba"
+    "scself"
 ]
 
 tests_require = [
