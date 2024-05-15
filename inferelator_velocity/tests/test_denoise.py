@@ -9,12 +9,12 @@ from ._stubs import (
 )
 
 from inferelator_velocity.denoise_data import (
-    _dist_to_row_stochastic,
+    row_normalize,
     denoise
 )
 
 DENOISE_EXPR = np.dot(
-    _dist_to_row_stochastic(EXPR_KNN).A,
+    row_normalize(EXPR_KNN, copy=True).A,
     EXPRESSION_ADATA.X
 )
 
