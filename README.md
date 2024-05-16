@@ -242,3 +242,20 @@ adata.varm['decay_rate_standard_error'] = np.array(_decay_bound[1]).T
 This function will return decay rate, standard error of decay rate, estimate
 of maximum transcription, and the centers for each sliding window.
 They must be explicitly assigned to an attribute.
+
+#### Denoising data
+
+Call `denoise` on an anndata object. This requires a graph from `global_graph`.
+
+```
+import anndata as ad
+import numpy as np
+from inferelator_velocity import denoise
+
+adata = ad.read(FILE_NAME)
+
+def denoise(
+    adata,                   # Anndata object
+    layer='X',              # Layer with data to be denoised
+)
+```
