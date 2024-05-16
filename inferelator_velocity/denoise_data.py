@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sps
+import warnings
 
 from inferelator_velocity.utils.keys import (
     NOISE2SELF_DIST_KEY,
@@ -30,12 +31,17 @@ def denoise(
             f"run global_graph() first"
         )
 
-    if data.obsp[graph_key].dtype != lref.dtype:
-        raise RuntimeError(
-            f"Graph dtype {data.obsp[graph_key].dtype} is not the "
+    graph = data.obsp[graph_key]
+
+    if graph.dtype != lref.dtype:
+        warnings.warn(
+            f"Graph dtype {graph.dtype} is not the "
             f"same as data dtype {lref.dtype}; "
-            "these must match and be float32 or float64"
+            "converting both to np.float64",
+            RuntimeWarning
         )
+        lref = lref.astype(np.float64)
+        graph = graph.astype(np.float64)
 
     _n_obs = lref.shape[0]
 
@@ -48,7 +54,7 @@ def denoise(
         _denoised_data = _denoise_chunk(
             lref,
             row_normalize(
-                data.obsp[graph_key],
+                graph,
                 connectivity=connectivity
             ),
             dense=dense,
@@ -56,7 +62,7 @@ def denoise(
         )
 
     elif dense or not sps.issparse(lref):
-        _denoised_data = np.zeros(lref.shape, dtype=np.float32)
+        _denoised_data = np.zeros(lref.shape, dtype=lref.dtype)
 
         for i in range(_n_chunks):
             _start, _stop = i * chunk_size, min((i + 1) * chunk_size, _n_obs)
@@ -66,7 +72,7 @@ def denoise(
             _denoise_chunk(
                 lref,
                 row_normalize(
-                    data.obsp[graph_key][_start:_stop, :],
+                    graph[_start:_stop, :],
                     connectivity=connectivity
                 ),
                 dense=True,
@@ -83,13 +89,13 @@ def denoise(
 
             _denoised_data.append(
                 _denoise_chunk(
-                        lref,
-                        row_normalize(
-                            data.obsp[graph_key][_start:_stop, :],
-                            connectivity=connectivity
-                        ),
-                        zero_threshold=zero_threshold
-                    )
+                    lref,
+                    row_normalize(
+                        graph[_start:_stop, :],
+                        connectivity=connectivity
+                    ),
+                    zero_threshold=zero_threshold
+                )
             )
 
         _denoised_data = sps.vstack(_denoised_data)

@@ -50,7 +50,7 @@ class TestDenoise(unittest.TestCase):
             )
 
         self.data.X = self.data.X.astype(int)
-        with self.assertRaises(RuntimeError):
+        with self.assertWarns(RuntimeWarning):
             denoise(
                 self.data,
                 chunk_size=500,
