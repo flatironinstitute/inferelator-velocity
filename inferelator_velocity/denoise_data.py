@@ -6,99 +6,59 @@ from inferelator_velocity.utils.keys import (
     NOISE2SELF_DIST_KEY,
     NOISE2SELF_DENOISED_KEY
 )
-from scself._noise2self.common import row_normalize
+from scself import denoise_data
 from scself.utils import array_sum
-from scself import dot
 
 
 def denoise(
     data,
     layer='X',
+    graph=None,
     graph_key=NOISE2SELF_DIST_KEY,
     output_layer=NOISE2SELF_DENOISED_KEY,
-    dense=True,
-    chunk_size=10_000,
+    chunk_size=None,
     zero_threshold=None,
     obs_count_key=None,
-    connectivity=False
+    connectivity=False,
+    dense=None
 ):
 
     lref = data.X if layer == 'X' else data.layers[layer]
 
-    if graph_key not in data.obsp.keys():
-        raise RuntimeError(
-            f"Graph {graph_key} not found in data.obsp; "
-            f"run global_graph() first"
-        )
+    if graph is None:
+        if graph_key not in data.obsp.keys():
+            raise RuntimeError(
+                f"Graph {graph_key} not found in data.obsp; "
+                f"run global_graph() first"
+            )
 
-    graph = data.obsp[graph_key]
+        graph = data.obsp[graph_key]
 
-    if graph.dtype != lref.dtype:
-        warnings.warn(
-            f"Graph dtype {graph.dtype} is not the "
-            f"same as data dtype {lref.dtype}; "
-            "converting both to np.float64",
-            RuntimeWarning
-        )
-        lref = lref.astype(np.float64)
+    if isinstance(graph, (tuple, list)):
+        _cast_data = False
+        for i in range(len(graph)):
+            if _check_dtype(graph[i].dtype, lref.dtype):
+                graph[i] = graph[i].astype(np.float64)
+                _cast_data = True
+
+    elif (_cast_data := _check_dtype(graph.dtype, lref.dtype)):
         graph = graph.astype(np.float64)
 
-    _n_obs = lref.shape[0]
+    if _cast_data:
+        lref = lref.astype(np.float64)
 
-    if chunk_size is not None:
-        _n_chunks = int(np.ceil(_n_obs / chunk_size))
-    else:
-        _n_chunks = 1
+    _denoised_data = denoise_data(
+        lref,
+        graph,
+        zero_threshold=zero_threshold,
+        chunk_size=chunk_size,
+        connectivity=connectivity
+    )
 
-    if _n_chunks == 1:
-        _denoised_data = _denoise_chunk(
-            lref,
-            row_normalize(
-                graph,
-                connectivity=connectivity
-            ),
-            dense=dense,
-            zero_threshold=zero_threshold
-        )
-
-    elif dense or not sps.issparse(lref):
-        _denoised_data = np.zeros(lref.shape, dtype=lref.dtype)
-
-        for i in range(_n_chunks):
-            _start, _stop = i * chunk_size, min((i + 1) * chunk_size, _n_obs)
-            if _stop <= _start:
-                break
-
-            _denoise_chunk(
-                lref,
-                row_normalize(
-                    graph[_start:_stop, :],
-                    connectivity=connectivity
-                ),
-                dense=True,
-                out=_denoised_data[_start:_stop, :],
-                zero_threshold=zero_threshold
-            )
-
-    else:
-        _denoised_data = []
-        for i in range(_n_chunks):
-            _start, _stop = i * chunk_size, min((i + 1) * chunk_size, _n_obs)
-            if _stop <= _start:
-                break
-
-            _denoised_data.append(
-                _denoise_chunk(
-                    lref,
-                    row_normalize(
-                        graph[_start:_stop, :],
-                        connectivity=connectivity
-                    ),
-                    zero_threshold=zero_threshold
-                )
-            )
-
-        _denoised_data = sps.vstack(_denoised_data)
+    if dense is True and sps.issparse(_denoised_data):
+        _denoised_data = _denoised_data.A
+    elif dense is False and not sps.issparse(_denoised_data):
+        _denoised_data = sps.csr_matrix(_denoised_data)
 
     if output_layer == 'X':
         data.X = _denoised_data
@@ -116,32 +76,17 @@ def denoise(
     return data
 
 
-def _denoise_chunk(
-    x,
-    graph,
-    zero_threshold=None,
-    out=None,
-    dense=False
-):
-
-    if not sps.issparse(x):
-        dense = True
-
-    out = dot(
-        graph,
-        x,
-        out=out,
-        dense=dense
-    )
-
-    if zero_threshold is not None and dense:
-        out[out < zero_threshold] = 0
-    elif zero_threshold:
-        out.data[out.data < zero_threshold] = 0
-
-        try:
-            out.eliminate_zeros()
-        except AttributeError:
-            pass
-
-    return out
+def _check_dtype(graph_dtype, data_dtype):
+    if (
+        (not np.issubdtype(graph_dtype, np.floating)) or
+        (graph_dtype != data_dtype)
+    ):
+        warnings.warn(
+            f"Graph dtype {graph_dtype} is not the "
+            f"same as data dtype {data_dtype}; "
+            "converting both to np.float64",
+            RuntimeWarning
+        )
+        return True
+    else:
+        return False

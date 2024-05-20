@@ -8,10 +8,8 @@ from ._stubs import (
     EXPRESSION_ADATA
 )
 
-from inferelator_velocity.denoise_data import (
-    row_normalize,
-    denoise
-)
+from scself._noise2self.common import row_normalize
+from inferelator_velocity.denoise_data import denoise
 
 DENOISE_EXPR = np.dot(
     row_normalize(EXPR_KNN, copy=True).A,
