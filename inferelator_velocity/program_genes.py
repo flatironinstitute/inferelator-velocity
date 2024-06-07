@@ -109,7 +109,7 @@ def assign_genes_to_programs(
         else:
             return old_labels
 
-    d = standardize_data(
+    d, _ = standardize_data(
         copy_count_layer(data, layer),
         method=standardization_method
     )

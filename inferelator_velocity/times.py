@@ -248,7 +248,7 @@ def calculate_times(
         _mcv_error = None
 
     # Construct an adata object and normalize it
-    adata = standardize_data(
+    adata, _ = standardize_data(
         ad.AnnData(count_data.astype(float)),
         method=standardization_method
     )
