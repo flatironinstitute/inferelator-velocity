@@ -145,7 +145,7 @@ class TestProgramTimes(unittest.TestCase):
 
         self.assertEqual(
             len(a),
-            4
+            5
         )
 
 
