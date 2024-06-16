@@ -152,7 +152,7 @@ def program_select(
             if 'subset_genes_for_depth' in standardization_kwargs.keys():
                 standardization_kwargs['subset_genes_for_depth'] = (
                     standardization_kwargs['subset_genes_for_depth'][
-                        d.var_names.isin(data.var_names)
+                        data.var_names.isin(d.var_names)
                     ]
                 )
 
