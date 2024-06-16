@@ -43,6 +43,7 @@ def program_select(
     layer="X",
     count_layer=None,
     standardization_method='log',
+    standardization_kwargs=None,
     mcv_loss_arr=None,
     n_jobs=-1,
     verbose=False,
@@ -111,10 +112,13 @@ def program_select(
     d = copy_count_layer(data, layer, counts_layer=count_layer)
 
     # PREPROCESSING / NORMALIZATION #
+    if standardization_kwargs is None:
+        standardization_kwargs = {}
 
     standardize_data(
         d,
-        method=standardization_method
+        method=standardization_method,
+        **standardization_kwargs
     )
 
     if filter_to_hvg:
@@ -149,6 +153,8 @@ def program_select(
                 d.layers['counts'],
                 n=1,
                 n_pcs=min(d.shape[1] - 1, 100),
+                standardization_method=standardization_method,
+                standardization_kwargs=standardization_kwargs,
                 **mcv_kwargs
             )
 
