@@ -149,6 +149,13 @@ def program_select(
     if n_comps is None:
 
         if mcv_loss_arr is None:
+            if 'subset_genes_for_depth' in standardization_kwargs.keys():
+                standardization_kwargs['subset_genes_for_depth'] = (
+                    standardization_kwargs['subset_genes_for_depth'][
+                        d.var_names.isin(data.var_names)
+                    ]
+                )
+
             mcv_loss_arr = mcv_pcs(
                 d.layers['counts'],
                 n=1,
