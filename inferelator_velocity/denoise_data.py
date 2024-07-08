@@ -52,11 +52,12 @@ def denoise(
         graph,
         zero_threshold=zero_threshold,
         chunk_size=chunk_size,
-        connectivity=connectivity
+        connectivity=connectivity,
+        dense=dense
     )
 
     if dense is True and sps.issparse(_denoised_data):
-        _denoised_data = _denoised_data.A
+        _denoised_data = _denoised_data.toarray()
     elif dense is False and not sps.issparse(_denoised_data):
         _denoised_data = sps.csr_matrix(_denoised_data)
 

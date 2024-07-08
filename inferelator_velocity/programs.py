@@ -304,7 +304,7 @@ def _leiden_cluster(
     )
 
     if knn_connect.size < int(1e6) and sparse.issparse(knn_connect):
-        knn_connect = knn_connect.A
+        knn_connect = knn_connect.toarray()
 
     leiden_kws = {} if leiden_kws is None else leiden_kws
     leiden_kws['adjacency'] = knn_connect

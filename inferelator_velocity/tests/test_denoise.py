@@ -12,7 +12,7 @@ from scself._noise2self.common import row_normalize
 from inferelator_velocity.denoise_data import denoise
 
 DENOISE_EXPR = np.dot(
-    row_normalize(EXPR_KNN, copy=True).A,
+    row_normalize(EXPR_KNN, copy=True).toarray(),
     EXPRESSION_ADATA.X
 )
 
@@ -107,7 +107,7 @@ class TestDenoise(unittest.TestCase):
 
         npt.assert_almost_equal(
             self.expect,
-            self.data.layers['abc'].A,
+            self.data.layers['abc'].toarray(),
             decimal=2
         )
 

@@ -140,7 +140,7 @@ def assign_genes_to_programs(
     _time_nan = np.sum(~np.isfinite(_times), axis=1).astype(bool)
     _n_time_nan = np.sum(_time_nan > 0)
 
-    d = d.X if use_sparse or not sps.issparse(d.X) else d.X.A
+    d = d.X if use_sparse or not sps.issparse(d.X) else d.X.toarray()
 
     if _n_time_nan > 0:
 

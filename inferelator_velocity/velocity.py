@@ -59,7 +59,7 @@ def _calc_local_velocity(
 
     # Densify a sparse matrix
     try:
-        expr = expr.A
+        expr = expr.toarray()
     except AttributeError:
         pass
 

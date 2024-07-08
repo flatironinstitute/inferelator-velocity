@@ -331,7 +331,7 @@ def _estimate_decay(
 
     # Cast to dense if needed
     try:
-        expression_data = expression_data.A.ravel()
+        expression_data = expression_data.toarray().ravel()
     except AttributeError:
         pass
 
