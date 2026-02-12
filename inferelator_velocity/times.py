@@ -128,7 +128,7 @@ def program_times(
         _obsmk = OBSM_PCA_KEY.format(prog=prog)
 
         # Find features assigned to the program
-        _var_idx = data.var[program_var_key] == prog
+        _var_idx = (data.var[program_var_key] == prog).values
 
         vprint(
             f"Assigning time values for program {prog} "
