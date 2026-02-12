@@ -83,7 +83,7 @@ class TestProgramTimes(unittest.TestCase):
 
         npt.assert_almost_equal(
             [0, 0.5, 1.],
-            [times[v] for _, v in {'a': 2, 'b': 5, 'c': 9}.items()]
+            [times[v] for _, v in {'a': '2', 'b': '5', 'c': '9'}.items()]
         )
 
     def test_program_times_exceptions(self):

@@ -227,7 +227,7 @@ def program_select(
     # Get the first PC for each cluster of genes
     _cluster_pc1 = np.zeros((d.shape[0], _n_l_clusts), dtype=float)
     for i in range(_n_l_clusts):
-        _lidx = d.var['leiden'] == i
+        _lidx = (d.var['leiden'] == i).values
         _cluster_pc1[:, i] = d.X[:, _lidx] @ d.varm['PCs'][_lidx, 0]
 
     # SECOND ROUND OF CLUSTERING TO MERGE GENE CLUSTERS INTO PROGRAMS #
